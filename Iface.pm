@@ -30,10 +30,23 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '1.07';
+$VERSION = '1.08';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
+}
+
+# work arround for the VERSION interface parameter
+sub VERSION {
+  my $self = shift;
+  my $name = 'VERSION';
+  if ( exists $self->{PARAMETERS}->{uc($name)} ) {
+      &parm($self, $name)->value( @_ );
+  } elsif ( exists $self->{TABLES}->{uc($name)} ) {
+      &tab($self, $name)->rows( @_ );
+  } else {
+      die "Parameter $name does not exist in Interface - no autoload";
+  };
 }
 
 sub AUTOLOAD {

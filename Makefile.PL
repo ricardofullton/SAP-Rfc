@@ -1,22 +1,17 @@
-#use ExtUtils::MakeMaker;
-#  use the new Inline::MakeMaker to make the module installable
-use Inline::MakeMaker;
+use ExtUtils::MakeMaker;
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
 #  inorder for the linktype dynamic to work, perl must be built with
 #  threads, and the rfc library included - see running Configure for perl
 
-#WriteMakefile(
-WriteInlineMakefile(
+WriteMakefile(
     clean => { 'FILES'	=> './examples/*.trc *.inl *.trc testconn ./examples/testconn *~ core test*.txt *.tar.gz _Inline ./examples/_Inline' },
-    'PREREQ_PM' => { 'Inline'	=> '0.40' },
     dist => { 'TARFLAGS'	=> 'cvf',
               'COMPRESS'        => 'gzip -9f',
     		'SUFFIX'	=> '.tgz'},
     'LINKTYPE'	=> 'dynamic',
+    'VERSION_FROM'	=> 'Rfc.pm',
     'NAME'	=> 'SAP::Rfc',
-    #'VERSION_FROM' => 'lib/SAP/Rfc.pm',
-    'VERSION_FROM' => 'Rfc.pm',
     'DEFINE'	=> '',   
     'LIBS'      => ['-lm -ldl -lpthread -L/usr/sap/rfcsdk/lib -lrfc'],
     'INC'       => '-I/usr/sap/rfcsdk/include',
@@ -33,7 +28,7 @@ print "           ---------------- Please Press Enter --------------- \n";
 $x=<>;
 print 
     <<ENDOFTEXT;
-    Copyright (c) 1999 Piers Harding.
+    Copyright (c) 2002 Piers Harding.
     All rights reserved.
 
     This program is free software; you can redistribute it and/or modify

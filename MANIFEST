@@ -4,6 +4,7 @@ Changes
 MANIFEST
 Makefile.PL
 Rfc.pm
+Rfc.xs
 SOAP.pm
 Iface.pm
 Config.pm

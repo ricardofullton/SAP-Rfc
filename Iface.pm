@@ -30,7 +30,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '0.99';
+$VERSION = '1.00';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -277,7 +277,9 @@ sub iface{
     map { $iface->{$_->name()} = { 'TYPE' => $_->type(),
 	                          'INTYPE' => $_->intype(),
 				  'VALUE' => $_->intvalue(),
-				  'LEN' => ($_->intype() == RFCTYPE_CHAR ? length($_->intvalue()) : $_->leng()) }
+#				  'LEN' => ($_->intype() == RFCTYPE_CHAR ? length($_->intvalue()) : $_->leng()) }
+                                  'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
+
       } ( $self->parms() );
 
 
@@ -892,6 +894,10 @@ sub leng {
       $self->{LEN} = 8;
   } elsif ( $self->intype() == RFCTYPE_INT){
       $self->{LEN} = 4;
+  } elsif ( $self->intype() == RFCTYPE_INT2){
+      $self->{LEN} = 2;
+  } elsif ( $self->intype() == RFCTYPE_INT1){
+      $self->{LEN} = 1;
   } else {
       $self->{LEN} = shift if @_;
   };

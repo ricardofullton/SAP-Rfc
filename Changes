@@ -102,3 +102,5 @@ Fix problesm with running Inline based programs under Apache/mod_perl
 Add in the ability to pass in table values ( rows ) as an array ref of hash refs - the hash refs contain a hash of the table structure key/value pairs.  The same has been done for parameters that have structures.
 Note: the whole record/complex parameter values can still be passed in as strings.
 
+1.00 Fri 05.11.2002
+Remove dependency on Inline::C ( go back to using pure XS ), and control the exit on bad connects better

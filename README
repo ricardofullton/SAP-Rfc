@@ -2,7 +2,7 @@
 			   SAP::Rfc XS Package
 
 
-    Copyright (c) 1999 Piers Harding.
+    Copyright (c) 2002 Piers Harding.
     All rights reserved.
     This program is free software; you can redistribute it and/or modify
     it under the terms of either:
@@ -61,13 +61,6 @@ The fundamental purpose of the production of this package, is to provide a clean
 (3) make the combination of Linux, Apache, and perl the killer app for internet connectivity with SAP.
 (4) Establish a small fun open source project that people are more than welcome to contribute to, if they so wish.
 
-As of version 0.91 the SAP::Rfc package has been completely rewritten to use Inline::C ( courtesy of Brian Ingerson of ActiveState ) - this has immensely simplified the implementation specifics, and has also taken the package a long way to being thread safe ( ie. there is nolonger any global storage defined within the C extension ).
-
-So your prerequisites are: 
-
-   Inline::C
-
-
 
 With this in mind - this package has been developed under Linux, so the installation is therefore focused on this.  This does not mean that it will not work on other UNIX like flavours - to the contrary it probably will, it just hasn't been tested.  The package has been compiled and run under Win32 - special attention needs to be paid to the options found in the Makefile.PL file.
 
@@ -78,7 +71,7 @@ This must be installed before you continue.  I use Redhat 6.1 or Slackware 7.0 -
 Once you have the rfcsdk installed carry on!
 
 
-Ensure that you have installed the rfcsdk in /usr/sap/rfcsdk ( include|lib ) otherwise Inline::C will not know where to find the necessary header files / libraries - this is a hard coded directive at the top of the Rfc.pm file.
+Ensure that you have installed the rfcsdk in /usr/sap/rfcsdk ( include|lib ) otherwise compile time will not know where to find the necessary header files / libraries - this is a hard coded directive at the top of the Rfc.pm file.
 
 
 After you have unpacked your kit, you should have all the files listed

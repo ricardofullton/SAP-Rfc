@@ -111,7 +111,11 @@ SV*  MyConnect(SV* connectstring){
     new_env.errorhandler = rfc_error;
     RfcEnvironment( &new_env );
 
-    /* fprintf(stderr, "%s\n", SvPV(connectstring, SvCUR(connectstring))); */
+    /* fprintf(stderr, "%s\n", SvPV(connectstring, SvCUR(connectstring)));
+    char * enc;
+    char * Pass = "bl0wfish";
+    RfcPasswordEnc(Pass, enc); 
+    fprintf(stderr, "passowrd %s\n", enc); */
     
     handle = RfcOpenEx(SvPV(connectstring, SvCUR(connectstring)),
 		       &error_info);

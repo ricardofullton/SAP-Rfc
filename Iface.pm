@@ -21,7 +21,6 @@ use constant RFCTYPE_INT   => 8;
 use constant RFCTYPE_INT2  => 9;
 use constant RFCTYPE_INT1  => 10;
 
-use Config;
 
 # Globals
 
@@ -36,7 +35,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.30';
+$VERSION = '1.31';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -506,7 +505,6 @@ package SAP::Tab;
 use strict;
 use vars qw($VERSION);
 
-use Config;
 
 # Globals
 
@@ -801,7 +799,6 @@ package SAP::Parms;
 use strict;
 use vars qw($VERSION);
 
-use Config;
 
 # Globals
 
@@ -999,8 +996,9 @@ sub intvalue {
 #	  return pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
            
 #	  warn "byte order is: $Config{byteorder} - $self->{VALUE} \n";
-	  return pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
-	            int($self->{VALUE}));
+#  ( ( join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12") ? "LIT" : "BIG" )
+	  #return pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
+	  return pack(((join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12") ? "l" : "N" ), int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT2){
 	  return pack("S", int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT1){
@@ -1173,7 +1171,6 @@ package SAP::Struc;
 use strict;
 use vars qw($VERSION $AUTOLOAD);
 
-use Config;
 
 #  require AutoLoader;
 
@@ -1504,7 +1501,8 @@ sub _unpack_structure {
 #          $fld->{VALUE} = unpack("I4",$fld->{VALUE});
           $fld->{VALUE} = 
 	     # unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
-	     unpack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
+	     #unpack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
+	     unpack((($self->{'LINTTYP'} eq 'BIG')  ? "N" : "l"),
 	            $fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2

@@ -1,11 +1,14 @@
 #!/usr/bin/perl
+
+use lib '../blib/lib';
+use lib '../blib/arch';
 use SAP::Rfc;
 use Data::Dumper;
 
 #   get a list of report names from table TRDIR and 
 #   then get the source code of each
 
-#print "VERSION: ".$SAP::Rfc::VERSION ."\n";
+print "VERSION: ".$SAP::Rfc::VERSION ."\n";
 #exit 0;
 
 

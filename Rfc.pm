@@ -5,7 +5,7 @@ use strict;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.09';
+$VERSION = '1.11';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { 0x01 }
@@ -26,6 +26,7 @@ use constant RFCTYPE_NUM   => 6;
 use constant RFCTYPE_FLOAT => 7;
 use constant RFCTYPE_INT   => 8;
 use constant RFCTYPE_INT2  => 9;
+use constant RFCTYPE_INT1  => 10;
 
 
 # Globals
@@ -131,16 +132,131 @@ sub new {
 # validate the login parameters
     map { delete $self->{$_} unless exists $VALID->{$_} } keys %{$self};
 
+# unless we are creating a registered RFC
+# eg. SAP => external program
+    unless (exists $self->{'TPNAME'}){
 # create the connection string and login to SAP
-    #warn "THE LOGIN STRING: ".login_string( $self )."\n";
-    my $conn = MyConnect( login_string( $self ) );
+      #warn "THE LOGIN STRING: ".login_string( $self )."\n";
+      my $conn = MyConnect( login_string( $self ) );
 
-    die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
-    $self->{HANDLE} = $conn;
+      die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
+      $self->{HANDLE} = $conn;
+    }
 
 # create the object and return it
     bless ($self, $class);
     return $self;
+}
+
+
+sub convtype {
+  my $datatype = shift;
+
+  if ($datatype eq RFCTYPE_CHAR){
+    # Character
+    return "C";
+  } elsif ($datatype eq RFCTYPE_BYTE){
+    # Integer
+    return "X";
+  } elsif ($datatype eq RFCTYPE_INT){
+    # Hex
+    return "I";
+  } elsif ($datatype eq RFCTYPE_INT1){
+    # Very Short Integer
+    return "b";
+  } elsif ($datatype eq RFCTYPE_INT2){
+    # Short Integer
+    return "s";
+  } elsif ($datatype eq RFCTYPE_DATE){
+    # Date
+    return "D";
+  } elsif ($datatype eq RFCTYPE_TIME){
+    # Time
+    return "T";
+  } elsif ($datatype eq RFCTYPE_BCD){
+    # Binary Coded Decimal eg. CURR QUAN etc
+    return "P";
+  } elsif ($datatype eq RFCTYPE_NUM){
+    #  Numchar
+    return "N";
+  } elsif ($datatype eq RFCTYPE_FLOAT){
+    #  Float
+    return "F";
+  } else {
+    # Character
+    return "C";
+  };
+
+}
+
+sub accept {
+
+  my $self = shift;
+  die "must have TPNAME, GWHOST and GWSERV to Register RFCs\n"
+    unless exists $self->{'GWHOST'} &&
+           exists $self->{'GWSERV'} &&
+           exists $self->{'TPNAME'};
+
+  my $conn = "-a ".$self->{'TPNAME'}." -g ".$self->{'GWHOST'}.
+             " -x ".$self->{'GWSERV'};
+  $conn .= " -t " if $self->{'TRACE'} > 0;
+
+  my $d = "";
+  foreach my $iface (sort keys %{$self->{'INTERFACES'}}){
+    my $if = $self->{'INTERFACES'}->{$iface};
+    $d .= "Function Name: $iface\nIMPORTING\n";
+    map { if ($_->type() eq RFCIMPORT){ $d .= "     ".sprintf("%-30s",$_->name())."     ".convtype($_->intype())."(".$_->leng().")\n" }
+	  } ( $if->parms() );
+    $d .= "EXPORTING\n";
+    map { if ($_->type() eq RFCEXPORT){ $d .= "     ".sprintf("%-30s",$_->name())."     ".convtype($_->intype())."(".$_->leng().")\n" }
+	  } ( $if->parms() );
+    $d .= "TABLES\n";
+    map { my $tab = $_;
+	  $d .= "     ".sprintf("%-30s",$tab->name())."     C(".$_->leng().")\n";
+	} ( $if->tabs() );
+    $d .= " \n";
+  }
+
+  #warn "docu: $d\n";
+  my $docu = [ map { pack("A80",$_) } split(/\n/,$d) ];
+
+  my $ifaces = { map { $_->name() => $_->iface(1) } values %{$self->{'INTERFACES'}} };
+
+  return my_accept($conn, $docu, $ifaces);
+
+}
+
+sub Handler {
+
+  my $handler = shift;
+  my $iface = shift;
+  my $data = shift;
+
+  #use Data::Dumper;
+  #warn "handler is: ".Dumper($handler);
+  #warn "iface is: ".Dumper($iface);
+  #warn "data is: ".Dumper($data);
+
+  map {
+	  $_->intvalue( intoext( $_, $data->{$_->name()} ) )
+	  } ( $iface->parms() );
+      $iface->emptyTables();
+  map { my $tab = $_;
+	    map { $tab->addRow( $_ ) }
+	        ( @{$data->{$tab->name()}} )
+	} ( $iface->tabs() );
+ 
+  my $result = "";
+  eval { $result = &$handler( $iface ); };
+  if ($@ || ! $result){
+        #warn "execution of handler failed: $@\n";
+	$result = { '__EXCEPTION__' => "$@" || "handler exec failed" };
+  } else {
+        $result = $iface->iface;
+  }
+  #warn "Result is going to be: ".Dumper($result);
+  return $result;
+
 }
 
 
@@ -188,6 +304,9 @@ sub iface{
   my $self = shift;
   die "No Interface supplied to RFC " if ! @_;
   my $iface = shift;
+  if (ref($iface) eq 'SAP::Iface'){
+    $self->{'INTERFACES'}->{$iface->name()} = $iface;
+  }
   return $self->{INTERFACES}->{$iface};
 
 }
@@ -486,7 +605,7 @@ sub callrfc {
 
 #  print STDERR "IFACE: ".Dumper($iface->iface );
 
-  my $result = MyRfcCallReceive( $self->{HANDLE}, $iface->name, $iface->iface);
+  my $result = MyRfcCallReceive( $self->{HANDLE}, $iface->name, $iface->iface );
 
   if ($DEBUG){
       use  Data::Dumper;
@@ -567,6 +686,8 @@ sub error{
 
 SAP::Rfc - Perl extension for performing RFC Function calls against an SAP R/3
 System.  Please refer to the README file found with this distribution.
+This Distribution also allows the creation of registered RFCs so that an SAP
+system can call arbitrary Perl code created in assigned callbacks
 
 =head1 SYNOPSIS
 
@@ -669,6 +790,63 @@ close
 error
   $rfc->error();
   Returns error string if previous call returned undef (currenty supported for discover, structure, is_connected and sapinfo).
+
+accept()
+This is the main function to initiate a registered RFC. Consider this example that implements the
+same functionality as the standard rfcexec executable that comes with all SAP R/3 server 
+implementations:
+
+  use SAP::Rfc;
+  use SAP::Iface;
+  use Data::Dumper;
+
+  # construct the Registered RFC conection
+  my $rfc = new SAP::Rfc(
+                TPNAME   => 'wibble.rfcexec',
+                GWHOST   => '172.22.50.1',
+                GWSERV   => '3300',
+                TRACE    => '1' );
+
+  # Build up the interface definition that the ABAP code is going to
+  # call including the subroutine reference that will be invoked
+  # on handling incoming requests
+  my $iface = new SAP::Iface(NAME => "RFC_REMOTE_PIPE", HANDLER => \&do_remote_pipe);
+
+  $iface->addParm( TYPE => $iface->RFCIMPORT,
+                   INTYPE => $iface->RFCTYPE_CHAR,
+                   NAME => "COMMAND",
+                   LEN => 256);
+
+  $iface->addParm( TYPE => $iface->RFCIMPORT,
+                   INTYPE => $iface->RFCTYPE_CHAR,
+                   NAME => "READ",
+                   LEN => 1);
+
+  $iface->addTab( NAME => "PIPEDATA",
+                  LEN => 80);
+
+  # add the interface definition to the available list of RFCs
+  $rfc->iface($iface);
+
+  # kick off the main event loop - register the RFC connection
+  # and wait for incoming calls
+  $rfc->accept();
+
+  ...
+
+  # the callback subroutine
+  # the subroutine receives one argument of an SAP::Iface
+  # object that has been populated with the inbound data
+  # the callback must return "TRUE" or this is considered
+  # an EXCEPTION
+  sub do_remote_pipe {
+    my $iface = shift;
+    warn "Running do_remote_pipe...\n";
+    my $ls = $iface->COMMAND;
+    $iface->PIPEDATA( [ map { pack("A80",$_) } split(/\n/, `$ls`) ]);
+    warn "   Data: ".Dumper($iface->PIPEDATA);
+    return 1;
+  }
 
 
 =head1 AUTHOR

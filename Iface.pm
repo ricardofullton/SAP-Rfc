@@ -25,12 +25,13 @@ use constant RFCTYPE_INT1  => 10;
 # Valid parameters
 my $IFACE_VALID = {
    NAME => 1,
+   HANDLER => 1,
    PARAMETERS => 1,
    TABLES => 1,
    EXCEPTIONS => 1
 };
 
-$VERSION = '1.08';
+$VERSION = '1.09';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -102,6 +103,8 @@ sub new {
 
   my $proto = shift;
   my $class = ref($proto) || $proto;
+
+  @_ = ('NAME' => @_) if scalar @_ == 1;
   my $self = {
   	PARAMETERS => {},
   	TABLES => {},
@@ -294,26 +297,31 @@ sub reset {
 sub iface{
 
     my $self = shift;
+    my $flag = shift || "";
 
     my $iface = {};
     map { $iface->{$_->name()} = { 'TYPE' => $_->type(),
-	                          'INTYPE' => $_->intype(),
-#				  'VALUE' => $_->intvalue(),
-                                  'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : $_->intvalue()),
-#				  'LEN' => ($_->intype() == RFCTYPE_CHAR ? length($_->intvalue()) : $_->leng()) }
-                                  'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
+	                           'INTYPE' => $_->intype(),
+#				   'VALUE' => $_->intvalue(),
+                                   'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : $_->intvalue()),
+#				   'LEN' => ($_->intype() == RFCTYPE_CHAR ? length($_->intvalue()) : $_->leng()) }
+                                   'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
 
-      } ( $self->parms_noempty() );
+      } ( $flag ? $self->parms : $self->parms_noempty() );
 
 
     map { $iface->{$_->name()} = { 'TYPE' => RFCTABLE,
-	                          'INTYPE' => $_->intype(),
-				  'VALUE' => [ ($_->rows()) ],
+	                           'INTYPE' => $_->intype(),
+				   'VALUE' => [ ($_->rows()) ],
 				   'LEN' => $_->leng() };
       } ( $self->tabs() );
 
 #    use Data::Dumper;
 #    warn "This is the IFACE: ".Dumper($iface)."\n";
+    if ($flag){
+      $iface->{'__HANDLER__'} = $self->{'HANDLER'};
+      $iface->{'__SELF__'} = $self;
+    }
 
     return $iface;
 
@@ -730,6 +738,7 @@ use constant RFCTYPE_INT1  => 10;
 my $PARMS_VALID = {
    RFCINTTYP => 1,
    NAME => 1,
+   HANDLER => 1,
    INTYPE => 1,
    LEN => 1,
    STRUCTURE => 1,

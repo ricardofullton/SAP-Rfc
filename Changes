@@ -136,3 +136,10 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
   - added support for endianess of INT4s courtesy of Pavel Smirnov
   - Add error() message accessor from the SAP::Rfc object
     courtesy of  Dobrica Pavlinusic
+
+1.10 Fri Apr 25 07:05:11 BST 2003
+  - work on tidying up the C code in Rfc.xs
+
+1.11 Thu May  1 11:28:28 BST 2003
+  - major revision to include registered RFC with a callback framework
+    to enable access from SAP to Perl code.

@@ -61,6 +61,10 @@ The fundamental purpose of the production of this package, is to provide a clean
 (3) make the combination of Linux, Apache, and perl the killer app for internet connectivity with SAP.
 (4) Establish a small fun open source project that people are more than welcome to contribute to, if they so wish.
 
+As of April 2003 (VERSION 1.11), SAP::Rfc has had another large chunk of functionality added.  
+The ability to perform registered RFC calls where ABAP code in SAP can call out to your Perl 
+code.  See the description of accept() in perldoc SAP::Rfc.
+
 
 With this in mind - this package has been developed under Linux, so the installation is therefore focused on this.  This does not mean that it will not work on other UNIX like flavours - to the contrary it probably will, it just hasn't been tested.  The package has been compiled and run under Win32 - special attention needs to be paid to the options found in the Makefile.PL file.
 

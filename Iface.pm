@@ -32,10 +32,11 @@ my $IFACE_VALID = {
    PARAMETERS => 1,
    TABLES => 1,
    EXCEPTIONS => 1,
-   SYSINFO => 1
+   SYSINFO => 1,
+   LINTTYP => 1
 };
 
-$VERSION = '1.25';
+$VERSION = '1.30';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -1193,6 +1194,7 @@ use constant RFCTYPE_INT1  => 10;
 # Valid parameters
 my $VALID = {
    RFCINTTYP => 1,
+   LINTTYP => 1,
    NAME => 1,
    FIELDS => 1
 };
@@ -1409,7 +1411,8 @@ sub _pack_structure {
 	  $fld->{VALUE} ||= 0;
           #$fld->{VALUE} = pack("N",$fld->{VALUE});
 	  #$fld->{VALUE} = pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
-	  $fld->{VALUE} = pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
+	  #$fld->{VALUE} = pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
+	  $fld->{VALUE} = pack(($self->{'LINTTYP'} eq 'BIG' ? "N" : "l"),
 	                       int($fld->{VALUE}));
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2

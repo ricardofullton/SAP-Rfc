@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.29';
+$VERSION = '1.30';
 @ISA = qw(DynaLoader Exporter);
 
 my $EXCEPTION_ONLY = 0;
@@ -90,13 +90,13 @@ my $VALID =  {
     TRACE => 1,
     ABAP_DEBUG => 1,
     USE_SAPGUI => 1,
-    TYPE => 1
+    TYPE => 1,
+    LINTTYP => 1
   };
 
 
 # Global debug flag
 my $DEBUG = undef;
-
 
 
 # Tidy up open Connection when DESTROY Destructor Called
@@ -168,6 +168,7 @@ sub new {
     
     my $self = {
 	INTERFACES => {},
+        LINTTYP => ( ( join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12") ? "LIT" : "BIG" ),
 	CLIENT => "000",
 	USER   => "SAPCPIC",
 	PASSWD => "ADMIN",
@@ -534,6 +535,7 @@ sub discover{
   };
   # stash a copy of sysinfo on the iface
   $interface->{'SYSINFO'} = $info;
+  $interface->{'LINTTYP'} = $self->{'LINTTYP'};
   return $interface;
 
 }
@@ -572,7 +574,7 @@ sub structure{
 	return undef;
   }
   
-  $struct = SAP::Struc->new( NAME => $struct, RFCINTTYP => $info->{'RFCINTTYP'} );
+  $struct = SAP::Struc->new( NAME => $struct, RFCINTTYP => $info->{'RFCINTTYP'}, LINTTYP => $self->{'LINTTYP'} );
   map {
       my ($tabname, $field, $pos, $off, $intlen, $decs, $exid ) =
 # record structure changes from 3.x to 4.x

@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.28';
+$VERSION = '1.29';
 @ISA = qw(DynaLoader Exporter);
 
 my $EXCEPTION_ONLY = 0;
@@ -111,7 +111,7 @@ sub DESTROY {
 sub TID_CHECK {
   my $tid = shift;
 
-  warn "in the default TID_CHECK\n";
+  warn "in the default TID_CHECK: $tid\n";
 
   return 0;
 }
@@ -121,7 +121,7 @@ sub TID_CHECK {
 sub TID_COMMIT {
   my $tid = shift;
 
-  warn "in the default TID_COMMIT\n";
+  warn "in the default TID_COMMIT: $tid\n";
 
   return;
 }
@@ -131,7 +131,7 @@ sub TID_COMMIT {
 sub TID_ROLLBACK {
   my $tid = shift;
 
-  warn "in the default TID_ROLLBACK\n";
+  warn "in the default TID_ROLLBACK: $tid\n";
 
   return;
 }
@@ -141,7 +141,7 @@ sub TID_ROLLBACK {
 sub TID_CONFIRM {
   my $tid = shift;
 
-  warn "in the default TID_CONFIRM\n";
+  warn "in the default TID_CONFIRM: $tid\n";
 
   return;
 }
@@ -294,6 +294,7 @@ sub Handler {
   my $handler = shift;
   my $iface = shift;
   my $data = shift;
+  my $tid = @_ ? shift @_ : "";
 
   #use Data::Dumper;
   #warn "handler is: ".Dumper($handler);
@@ -310,7 +311,7 @@ sub Handler {
 	} ( $iface->tabs() );
  
   my $result = "";
-  eval { $result = &$handler( $iface ); };
+  eval { $result = &$handler( $iface, $tid ); };
   if ($@ || ! $result){
 	my ($err) =  ($SAP::Rfc::EXCEPTION_ONLY ? ( $@ =~ /^(\w+)\s/) : $@);
         #warn "execution of handler($SAP::Rfc::EXCEPTION_ONLY) failed: '$@' => '$err'\n";
@@ -938,7 +939,10 @@ executable that comes with all SAP R/3 server implementations:
   callback() must return true (Perl true) all RFC_SYS_EXCEPTION is set, and the
   accept() loop exits.
 
-  For tRFC it must be activated by passing parameters to the $rfc = new SAP::Rfc( ... );
+
+=head2 accept() with tRFC ... continued
+
+  tRFC must be activated by passing parameters to the $rfc = new SAP::Rfc( ... );
   tRFC cannot be performed at the same time as standard registered RFC, do to the 
   behaviour inside the main event loop.
 
@@ -962,6 +966,16 @@ executable that comes with all SAP R/3 server implementations:
   TRFC_CHECK is the only one that can return a value - it returns true
   if this is a new transaction to be processed, or false to reject the 
   transaction.  All other TRFC_* callbacks return void().
+
+  In the actual callback() for each registered RFC in tRFC mode, there is
+  an additional parameter passed for the tRFC transaction id (tid):
+  sub do_remote_pipe {
+    my $iface = shift;
+    my $tid = shift;
+    ...
+
+  This can be used to track the status of the callback success, and relay
+  this information to the other transaction control callback (TID_*).
 
 
 =head1 AUTHOR

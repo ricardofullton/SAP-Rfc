@@ -47,6 +47,9 @@ HV* p_saprfc;
 /* global reference to main loop callback for registered RFC */
 SV* sv_callback;
 
+/* the current RFC_TID  */
+RFC_TID current_tid;
+
 
 /*
  * local prototypes & declarations
@@ -546,7 +549,6 @@ static int DLL_CALL_BACK_FUNCTION TID_check(RFC_TID tid)
     SPAGAIN;
 
     /* was this handled or passed? */
-    /* fprintf(stderr, "results are: %d \n", result); */
     if (result > 0){
       sv_rvalue = newSVsv(POPs);
     } else {
@@ -557,8 +559,10 @@ static int DLL_CALL_BACK_FUNCTION TID_check(RFC_TID tid)
     LEAVE;
 
     if (SvTRUE(sv_rvalue)){
+      memset(current_tid, 0, sizeof(current_tid));
       return 1;
     } else {
+      sprintf(current_tid+0, "%s", tid);
       return 0;
     }
 
@@ -687,6 +691,7 @@ static void DLL_CALL_BACK_FUNCTION TID_rollback(RFC_TID tid)
     return;
 }
 
+
 static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE handle)
 {
 
@@ -694,20 +699,9 @@ static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE handle)
   RFC_FUNCTIONNAME  funcname;
   SV* sv_iface;
 
-  fprintf(stderr, "\n\nStart Function %s\n", name_user_global_server);
-
-  fprintf(stderr, "\n<==  RfcGetName               rfc_rc = ");
-
   rc = RfcGetName(handle, funcname);
-
-  fprintf(stderr, "%d\n", rc);
-
-  if (rc == RFC_OK)
+  if (rc != RFC_OK)
   {
-      fprintf(stderr, "   Function Name: '%s'\n", funcname);
-  }
-
-  if (rc != RFC_OK){
      /* fprintf(stderr, "RFC connection failure code: %d \n", rc); */
      /* hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("RFC connection failure code: %d", rc), 0); */
        return rc;
@@ -767,6 +761,7 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
    /*
     * install error handler
     */
+   memset(current_tid, 0, sizeof(current_tid));
    global_saprfc = sv_saprfc;
    p_saprfc = (HV*)SvRV( sv_saprfc );
 
@@ -1360,6 +1355,10 @@ SV* call_handler(SV* sv_callback_handler, SV* sv_iface, SV* sv_data)
     XPUSHs( sv_callback_handler );
     XPUSHs( sv_iface );
     XPUSHs( sv_2mortal( sv_data ) );
+
+    /* add on the TID if one exists */
+    if (strlen(current_tid) > 0)
+       XPUSHs(newSVpvf("%s", current_tid));
 
     /* stash the stack point */
     PUTBACK;

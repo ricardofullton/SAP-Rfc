@@ -208,3 +208,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - fixed problem with SM59 RFC documentation that caused a memory leak.
  - built first version of tRFC.  This allows callbacks for handling the 
    transaction control CHECK, COMMIT, CONFIRM, and ROLLBACK
+
+1.29 Sat May 22 07:44:53 NZST 2004
+ - pass the TID for tRFC as the last argument in the RFC callback handler

@@ -165,4 +165,8 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
   - fixed errors for the initial value as found by Oliver Boudry
 
 1.18 Mon Sep  1 10:06:06 BST 2003
-  - Oliver Boudry has supplied with PPD based install packages for Win32.
+  - Oliver Boudry has supplied me with PPD based install packages for Win32.
+
+
+1.20 Fri Sep 19 07:04:18 NZST 2003
+ - Dirk Lachowski discovered a bug in sub DESTROY {} that meant the current open RFC connection was not being automatically cleaned up.

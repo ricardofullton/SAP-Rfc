@@ -181,6 +181,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 					       *hv_fetch(p_hash, (char *) "LEN", 3, FALSE), FALSE );
 	   myimports[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
 	   myimports[imp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+	   //fprintf(stderr, "import: %s value: %s \n", myimports[imp_cnt].name, myimports[imp_cnt].addr);
 	   ++imp_cnt;
 	   break;
 
@@ -197,6 +198,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 					       *hv_fetch(p_hash, (char *) "LEN", 3, FALSE), TRUE );
 	   myexports[exp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
 	   myexports[exp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+	   //fprintf(stderr, "export: %s value: %s \n", myexports[exp_cnt].name, myexports[exp_cnt].addr);
 	   ++exp_cnt;
 
 	   break;

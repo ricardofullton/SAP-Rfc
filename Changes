@@ -109,3 +109,8 @@ Remove dependency on Inline::C ( go back to using pure XS ), and control the exi
 Rearranged the test suite, and fixed up makesoap.pl etc.
 fixed a bug to do with export parameter structures.
 
+1.03 Tue Dec 10 06:34:42 GMT 2002
+Fixed a problem with export parameters where empty structures (structures where a value has never been set) are not initialised properly.
+
+1.04 Fri Dec 20 09:42:14 GMT 2002
+Fixed a problem with mis-interpreting integers courtesy of Thomas Gobel

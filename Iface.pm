@@ -30,7 +30,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '1.00';
+$VERSION = '1.04';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -158,6 +158,15 @@ sub parms {
 }
 
 
+# Return the parameter list excluding empty export parameters
+sub parms_noempty {
+
+  my $self = shift;
+  return sort { $a->name() cmp $b->name() } grep { ! ($_->type() == RFCEXPORT && ! $_->changed()) }values %{$self->{PARAMETERS}};
+
+}
+
+
 # Add an Table Object
 sub addTab {
 
@@ -281,7 +290,7 @@ sub iface{
 #				  'LEN' => ($_->intype() == RFCTYPE_CHAR ? length($_->intvalue()) : $_->leng()) }
                                   'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
 
-      } ( $self->parms() );
+      } ( $self->parms_noempty() );
 
 
     map { $iface->{$_->name()} = { 'TYPE' => RFCTABLE,
@@ -290,6 +299,8 @@ sub iface{
 				   'LEN' => $_->leng() };
       } ( $self->tabs() );
 
+#    use Data::Dumper;
+#    warn "This is the IFACE: ".Dumper($iface)."\n";
 
     return $iface;
 
@@ -711,7 +722,8 @@ my $PARMS_VALID = {
    DECIMALS => 1,
    TYPE => 1,
    DEFAULT => 1,
-   VALUE => 1
+   VALUE => 1,
+   CHANGED => 1
 };
 
 
@@ -746,6 +758,7 @@ sub new {
   my $self = {
      INTYPE => RFCTYPE_CHAR,
      DEFAULT => undef,
+     CHANGED => 0,
      VALUE => undef,
      @_
   };
@@ -774,6 +787,15 @@ sub type {
   my $self = shift;
   $self->{TYPE} = shift if @_;
   return $self->{TYPE};
+
+}
+
+
+# get the changed flag
+sub changed {
+
+  my $self = shift;
+  return $self->{'CHANGED'};
 
 }
 
@@ -812,6 +834,8 @@ sub value {
       map { $str->$_($self->{'VALUE'}->{$_}) } keys %{$self->{'VALUE'}};
       $self->{'VALUE'} = $str->value;
       $str->value("");
+    } else {
+      $self->{'CHANGED'} = $self->{'VALUE'} eq $self->{'DEFAULT'} ? 0 : 1;
     }
     $self->leng(length($self->{'VALUE'}));
   }
@@ -837,7 +861,8 @@ sub intvalue {
 
 #  print STDERR "PARM: ".$self->name() ." type ".$self->intype()." is: ".$self->{'VALUE'}."\n";
 # Sort out theinternal format
-  if ( $self->{VALUE}){
+#  if ( $self->{VALUE}){
+  if ( $self->{VALUE} ne ''){
       if ( $self->intype() == RFCTYPE_BCD){
 	  return pack("H*", $self->{VALUE});
       } elsif ( $self->intype() == RFCTYPE_FLOAT){

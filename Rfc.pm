@@ -5,7 +5,7 @@ use strict;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.08';
+$VERSION = '1.09';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { 0x01 }
@@ -217,7 +217,10 @@ sub discover{
 			      "RFC_GET_FUNCTION_INTERFACE_P",
 			      $if );
   
-  return  undef if $ifc->{'__RETURN_CODE__'} ne '0';
+  if ($ifc->{'__RETURN_CODE__'} ne '0') {
+  	$self->{ERROR} = $ifc->{'__RETURN_CODE__'};
+	return undef;
+  }
 
   my $interface = new SAP::Iface(NAME => $iface);
 #  print STDERR "VESION: ".Dumper($info)."\n";
@@ -311,6 +314,7 @@ sub discover{
       if ($type eq "I"){
 	  #  Export Parameter - Reverse perspective
 	  $interface->addParm( 
+			       RFCINTTYP => $info->{'RFCINTTYP'},
 			       TYPE => RFCEXPORT,
 			       INTYPE => $datatype, 
 			       NAME => $name, 
@@ -322,6 +326,7 @@ sub discover{
       } elsif ( $type eq "E"){
 	  #  Import Parameter - Reverse perspective
 	  $interface->addParm( 
+			       RFCINTTYP => $info->{'RFCINTTYP'},
 			       TYPE => RFCIMPORT,
 			       INTYPE => $datatype, 
 			       NAME => $name, 
@@ -342,6 +347,8 @@ sub discover{
 	  $interface->addException( $name );
       };
   };
+  # stash a copy of sysinfo on the iface
+  $interface->{'SYSINFO'} = $info;
   return $interface;
 
 }
@@ -375,9 +382,12 @@ sub structure{
 			      "RFC_GET_STRUCTURE_DEFINITION_P",
 			      $iface );
   
-  return  undef if $str->{'__RETURN_CODE__'} ne '0';
+  if ($str->{'__RETURN_CODE__'} ne '0') {
+  	$self->{ERROR} = $str->{'__RETURN_CODE__'};
+	return undef;
+  }
   
-  $struct = SAP::Struc->new( NAME => $struct );
+  $struct = SAP::Struc->new( NAME => $struct, RFCINTTYP => $info->{'RFCINTTYP'} );
   map {
       my ($tabname, $field, $pos, $off, $intlen, $decs, $exid ) =
 # record structure changes from 3.x to 4.x
@@ -410,7 +420,12 @@ sub is_connected{
   my $self = shift;
   my $ping = MyRfcCallReceive( $self->{HANDLE}, "RFC_PING", {} );
   
-  return  $ping->{'__RETURN_CODE__'} eq '0' ? 1 : undef;
+  if ($ping->{'__RETURN_CODE__'} eq '0') {
+  	return 1;
+  } else {
+  	$self->{ERROR} = $ping->{'__RETURN_CODE__'};
+	return undef;
+  }
   
 }
 
@@ -435,7 +450,10 @@ sub sapinfo {
 				  }
 				  );
   
-    return  undef if $sysinfo->{'__RETURN_CODE__'} ne '0';
+    if ($sysinfo->{'__RETURN_CODE__'} ne '0') {
+	$self->{ERROR} = $sysinfo->{'__RETURN_CODE__'};
+	return undef;
+    }
 
     my $pos = 0;
     my $info = {};
@@ -496,7 +514,7 @@ sub intoext{
     my $value = shift || "";
 
     if ( $parm->intype() == RFCTYPE_INT ){
-	return unpack("l", $value);
+	return unpack("N", $value);
     } elsif ( $parm->intype() == RFCTYPE_FLOAT ){
 	return unpack("d",$value);
     } elsif ( $parm->intype() == RFCTYPE_BCD ){
@@ -533,6 +551,15 @@ sub close {
 }
 
 
+# Return error message
+sub error{
+
+  my $self = shift;
+  my $msg = $self->{ERROR};
+  $msg =~ s/^.+MESSAGE\s*//;
+  return $msg;
+  
+}
 
 
 
@@ -638,6 +665,10 @@ close
   $rfc->close();
   Close the current open RFC connection to an SAP system, and then reset cached sapinfo data.
 
+
+error
+  $rfc->error();
+  Returns error string if previous call returned undef (currenty supported for discover, structure, is_connected and sapinfo).
 
 
 =head1 AUTHOR

@@ -728,6 +728,7 @@ use constant RFCTYPE_INT1  => 10;
 
 # Valid parameters
 my $PARMS_VALID = {
+   RFCINTTYP => 1,
    NAME => 1,
    INTYPE => 1,
    LEN => 1,
@@ -891,7 +892,9 @@ sub intvalue {
 	  return pack("d", $self->{VALUE});
       } elsif ( $self->intype() == RFCTYPE_INT){
 #	  return pack("I4", int($self->{VALUE}));
-	  return pack("l", int($self->{VALUE}));
+	  #return pack("N", int($self->{VALUE}));
+	  return pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+	            int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT2){
 	  return pack("S", int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT1){
@@ -1064,6 +1067,7 @@ use constant RFCTYPE_INT1  => 10;
 
 # Valid parameters
 my $VALID = {
+   RFCINTTYP => 1,
    NAME => 1,
    FIELDS => 1
 };
@@ -1278,7 +1282,9 @@ sub _pack_structure {
 	# Long INT4
 #          $fld->{VALUE} = pack("I4",$fld->{VALUE});
 	  $fld->{VALUE} ||= 0;
-          $fld->{VALUE} = pack("l",$fld->{VALUE});
+          #$fld->{VALUE} = pack("N",$fld->{VALUE});
+	  $fld->{VALUE} = pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+	                       int($fld->{VALUE}));
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2
 	  $fld->{VALUE} ||= 0;
@@ -1367,7 +1373,9 @@ sub _unpack_structure {
         if ( $fld->{INTYPE} eq RFCTYPE_INT ){
 	# Long INT4
 #          $fld->{VALUE} = unpack("I4",$fld->{VALUE});
-          $fld->{VALUE} = unpack("l",$fld->{VALUE});
+          $fld->{VALUE} = 
+	     unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+	            $fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2
           $fld->{VALUE} = unpack("S",$fld->{VALUE});

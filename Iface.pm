@@ -31,10 +31,11 @@ my $IFACE_VALID = {
    HANDLER => 1,
    PARAMETERS => 1,
    TABLES => 1,
-   EXCEPTIONS => 1
+   EXCEPTIONS => 1,
+   SYSINFO => 1
 };
 
-$VERSION = '1.21';
+$VERSION = '1.25';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -112,6 +113,7 @@ sub new {
   	PARAMETERS => {},
   	TABLES => {},
   	EXCEPTIONS => {},
+  	SYSINFO => {},
 	@_
   };
 
@@ -132,6 +134,16 @@ sub name {
 
   my $self = shift;
   return $self->{NAME};
+
+}
+
+
+# get the sysinfo of the current connection 
+# only relevent for registered RFC
+sub sysinfo {
+
+  my $self = shift;
+  return $self->{'SYSINFO'};
 
 }
 
@@ -308,7 +320,7 @@ sub reset {
 
 
 #Generate the Interface hash
-sub iface{
+sub iface {
 
     my $self = shift;
     my $flag = shift || "";
@@ -475,6 +487,15 @@ Generally you would not create one of these manually as it is far easier to use 
 
   An internal method that generates the internal structure passed into 
   the C routines.
+
+=head2 handler()
+
+  return a reference to the callback handler for registered RFC 
+
+=head2 sysinfo()
+
+  return a hash ref containing the system info for the current 
+  registered RFC callback
 
 
 =cut

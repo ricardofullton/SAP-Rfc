@@ -183,3 +183,12 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.23 Sat Jan 31 06:34:05 NZDT 2004
  - changed the build process to automatically hunt for the libraries and includes
  - assistance provided by Olivier (as usual) getting the win32 part right (thanks!)
+
+1.24 Thu Feb  5 08:40:59 NZDT 2004
+ - Thanks to achim for help with the new information for the build process for Linux etc.
+
+1.25 Wed Apr 21 20:11:29 NZST 2004
+ - Added a method to the SAP::Iface object called sysinfo() that returns a hash of the
+ system info vital statistics for the current RFC call.  This method only returns
+ information within a registered RFC scenario.
+

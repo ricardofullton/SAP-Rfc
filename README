@@ -83,7 +83,27 @@ Once you have the rfcsdk installed carry on!
 Make sure that the LIBS and INC directive in the Makefile.PL points to the correct location of your OS's version of the rfcsdk -without this linking correctly nothing is going to work.
 </old>
 
-After you have unpacked your kit, you should have all the files listed
+<new>
+Thanks to Achim Grolms who supplied the following information :-
+
+- where to get the required SAP files for the RFCSDK:
+
+<ftp://ftp.sap.com/pub/linuxlab/contrib/SAPCAR>
+Archive program needed to exratct the archives
+
+<ftp://ftp.sap.com/pub/linuxlab/contrib/librfc_mt_so_dbg.CAR>
+Dynamic libraries and headers
+
+-This is how to extract
+(Like ./SAPCAR -xvf librfc_mt_so_dbg.CAR)
+
+-and where to put them
+(libs to $RFCSDKHOME/lib and headers to $RFCSDKHOME/include)
+
+where RFCSDK should be /usr/sap/rfcsdk as a standard
+</new>
+
+After you have unpacked The SAP::Rfc module, you should have all the files listed
 in MANIFEST.
 
 Installation

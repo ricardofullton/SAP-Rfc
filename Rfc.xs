@@ -504,10 +504,10 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
 
      rc = RfcGetName(handle, funcname);
 
-     /* fprintf(stderr, "the Function Name is: %s\n", funcname); */
 
      /* check at this point for registered functions */
      if ( ! hv_exists(p_hash, funcname, strlen(funcname)) ){
+       fprintf(stderr, "the MISSING Function Name is: %s\n", funcname);
        RfcRaise( handle, "FUNCTION Does not exist" );
        continue;
      }
@@ -561,6 +561,82 @@ static RFC_RC install_docu( RFC_HANDLE handle )
 } /* install_docu */
 
 
+/*====================================================================*/
+/*                                                                    */
+/* Get specific info about an RFC connection                          */
+/*                                                                    */
+/*====================================================================*/
+void get_attributes(RFC_HANDLE rfc_handle, HV* hv_sysinfo)
+{
+  RFC_ATTRIBUTES    rfc_attributes;
+  RFC_RC rc;
+
+  hv_clear(hv_sysinfo);
+
+  rc = RfcGetAttributes(rfc_handle, &rfc_attributes);
+  if (rc != RFC_OK)
+    return;
+  //if (rc)
+  //  rfc_error("RfcGetAttributes");
+
+  hv_store(hv_sysinfo, "dest", 4, newSVpv(rfc_attributes.dest, strlen(rfc_attributes.dest)), 0);
+  hv_store(hv_sysinfo, "localhost", 9, newSVpv(rfc_attributes.own_host, strlen(rfc_attributes.own_host)), 0);
+  if (rfc_attributes.rfc_role == RFC_ROLE_CLIENT)
+  {
+    if (rfc_attributes.partner_type == RFC_SERVER_EXT)
+      hv_store(hv_sysinfo, "servprogname", 12, newSVpv(rfc_attributes.partner_host, strlen(rfc_attributes.partner_host)), 0);
+    else if (rfc_attributes.partner_type == RFC_SERVER_EXT_REG)
+      hv_store(hv_sysinfo, "servprogid", 10, newSVpv(rfc_attributes.partner_host, strlen(rfc_attributes.partner_host)), 0);
+    else
+      hv_store(hv_sysinfo, "partnerhost", 11, newSVpv(rfc_attributes.partner_host, strlen(rfc_attributes.partner_host)), 0);
+  }
+  else
+    hv_store(hv_sysinfo, "partnerhost", 11, newSVpv(rfc_attributes.partner_host, strlen(rfc_attributes.partner_host)), 0);
+
+  hv_store(hv_sysinfo, "sysnr", 5, newSVpv(rfc_attributes.systnr, strlen(rfc_attributes.systnr)), 0);
+  hv_store(hv_sysinfo, "sysid", 5, newSVpv(rfc_attributes.sysid, strlen(rfc_attributes.sysid)), 0);
+  hv_store(hv_sysinfo, "mandt", 5, newSVpv(rfc_attributes.client, strlen(rfc_attributes.client)), 0);
+  hv_store(hv_sysinfo, "user", 4, newSVpv(rfc_attributes.user, strlen(rfc_attributes.user)), 0);
+  hv_store(hv_sysinfo, "lang", 4, newSVpv(rfc_attributes.language, strlen(rfc_attributes.language)), 0);
+  hv_store(hv_sysinfo, "isolang", 7, newSVpv(rfc_attributes.ISO_language, strlen(rfc_attributes.ISO_language)), 0);
+  if (rfc_attributes.trace == 'X')
+       hv_store(hv_sysinfo, "trace", 5, newSVpv("ON", 2), 0);
+  else
+       hv_store(hv_sysinfo, "trace", 5, newSVpv("OFF", 3), 0);
+
+  hv_store(hv_sysinfo, "localcodepage", 13, newSVpv(rfc_attributes.own_codepage, strlen(rfc_attributes.own_codepage)), 0);
+  hv_store(hv_sysinfo, "partnercodepage", 15, newSVpv(rfc_attributes.partner_codepage, strlen(rfc_attributes.partner_codepage)), 0);
+  if (rfc_attributes.rfc_role == RFC_ROLE_CLIENT)
+    hv_store(hv_sysinfo, "rfcrole", 7, newSVpv("External RFC Client", strlen("External RFC Client")), 0);
+  else if (rfc_attributes.own_type == RFC_SERVER_EXT)
+    hv_store(hv_sysinfo, "rfcrole", 7, newSVpv("External RFC Server, started by SAP gateway", strlen("External RFC Server, started by SAP gateway")), 0);
+  else
+    hv_store(hv_sysinfo, "rfcrole", 7, newSVpv("External RFC Server, registered at SAP gateway", strlen("External RFC Server, registered at SAP gateway")), 0);
+
+  hv_store(hv_sysinfo, "rel", 3, newSVpv(rfc_attributes.own_rel, strlen(rfc_attributes.own_rel)), 0);
+
+  if (rfc_attributes.partner_type == RFC_SERVER_R3)
+    hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("R3", strlen("R3")), 0);
+  else if (rfc_attributes.partner_type == RFC_SERVER_R2)
+    hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("R2", strlen("R2")), 0);
+  else if (rfc_attributes.rfc_role == RFC_ROLE_CLIENT)
+  {
+    if (rfc_attributes.partner_type == RFC_SERVER_EXT)
+      hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("External RFC Server, started by SAP gateway", strlen("External RFC Server, started by SAP gateway")), 0);
+    else
+      hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("External RFC Server, registered at SAP gateway", strlen("External RFC Server, registered at SAP gateway")), 0);
+  }
+  else
+    hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("External RFC Client", strlen("External RFC Client")), 0);
+
+  hv_store(hv_sysinfo, "partnerrel", 10, newSVpv(rfc_attributes.partner_rel, strlen(rfc_attributes.partner_rel)), 0);
+  hv_store(hv_sysinfo, "kernelrel", 9, newSVpv(rfc_attributes.kernel_rel, strlen(rfc_attributes.kernel_rel)), 0);
+  hv_store(hv_sysinfo, "convid", 6, newSVpv(rfc_attributes.CPIC_convid, strlen(rfc_attributes.CPIC_convid)), 0);
+
+  return;
+}
+
+
 /*
  * Generic Inbound RFC Request Handler
  *
@@ -587,6 +663,7 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
     AV*           array;
     HV*           h_parms;
     HV*           p_hash;
+    HV*           hv_sysinfo;
     HE*           h_entry;
     SV*           h_key;
     SV*           sv_type;
@@ -611,9 +688,9 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
        /* fprintf(stderr, "processing parameter: %s\n", SvPV(h_key, PL_na));  */
        if (strncmp("__HANDLER__", SvPV(h_key, PL_na),11) == 0 ||
            strncmp("__SELF__", SvPV(h_key, PL_na),8) == 0){
-          /* fprintf(stderr, "dont want the handler...\n"); */
 	  continue;
        }
+
        /* fprintf(stderr, "ok want this parameter ...\n"); */
        p_hash = (HV*)SvRV( hv_iterval(h_parms, h_entry) );
        sv_type = *hv_fetch( p_hash, (char *) "TYPE", 4, FALSE );
@@ -727,9 +804,15 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 
     };
 
+
     /* fprintf(stderr, "got data - now do callback\n"); */
     sv_callback_handler = *hv_fetch(h_parms, (char *) "__HANDLER__", 11, FALSE);
     sv_self = *hv_fetch(h_parms, (char *) "__SELF__", 8, FALSE);
+
+    /* get the systeminfo of the current connection */
+    hv_sysinfo = (HV*)SvRV(*hv_fetch((HV*)SvRV(sv_self),  (char *) "SYSINFO", 7, FALSE));
+    get_attributes(handle, hv_sysinfo);
+
     sv_result = call_handler( sv_callback_handler, sv_self, newRV_noinc( (SV*) hash) );
 
     /* if( rc != RFC_OK ) return rc; */

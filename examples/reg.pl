@@ -24,13 +24,16 @@ my $config = {
 #   RFCs
 
 print "VERSION: ".$SAP::Rfc::VERSION ."\n";
+$SAP::Rfc::EXCEPTION_ONLY = 1;
+print "EXCEPTION: ".$SAP::Rfc::EXCEPTION_ONLY ."\n";
 #exit 0;
 
 
 my $rfc = new SAP::Rfc(
               TPNAME   => 'wibble.rfcexec',
-              GWHOST   => 'kogut',
-              GWSERV   => '3318',
+              #GWHOST   => '172.22.50.1',
+              GWHOST   => 'seahorse.local.net',
+              GWSERV   => '3300',
               TRACE    => '1' );
 
 #my $iface = new SAP::Iface(NAME => "RFC_DEMO", HANDLER => \&do_demo);
@@ -88,6 +91,7 @@ sub do_remote_pipe {
   my $ls = $iface->COMMAND;
   $iface->PIPEDATA( [ map { pack("A80",$_) } split(/\n/, `$ls`) ]);
   warn "   Data: ".Dumper($iface->PIPEDATA);
+  #die "MY_CUSTOM_ERROR with some other text";
   return 1;
 
 }

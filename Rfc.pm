@@ -7,8 +7,10 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.23';
+$VERSION = '1.25';
 @ISA = qw(DynaLoader Exporter);
+
+my $EXCEPTION_ONLY = 0;
 
 sub dl_load_flags { $^O =~ /hpux/ ? 0x00 : 0x01 }
 SAP::Rfc->bootstrap($VERSION);
@@ -251,8 +253,10 @@ sub Handler {
   my $result = "";
   eval { $result = &$handler( $iface ); };
   if ($@ || ! $result){
-        #warn "execution of handler failed: $@\n";
-	$result = { '__EXCEPTION__' => "$@" || "handler exec failed" };
+	my ($err) =  ($SAP::Rfc::EXCEPTION_ONLY ? ( $@ =~ /^(\w+)\s/) : $@);
+        #warn "execution of handler($SAP::Rfc::EXCEPTION_ONLY) failed: '$@' => '$err'\n";
+
+	$result = { '__EXCEPTION__' => "$err" || "handler exec failed" };
   } else {
         $result = $iface->iface;
   }
@@ -806,6 +810,11 @@ executable that comes with all SAP R/3 server implementations:
   use SAP::Iface;
   use Data::Dumper;
 
+  # this enables the user to call die "MY_CUSTOM_ERROR"
+  # and only the string MY_CUSTOMER_ERROR is returned to SAP instead of
+  # the whole die text + line number etc.
+  $SAP::Rfc::EXCEPTION_ONLY = 1;
+
   # construct the Registered RFC conection
   my $rfc = new SAP::Rfc(
                 TPNAME   => 'wibble.rfcexec',
@@ -851,6 +860,8 @@ executable that comes with all SAP R/3 server implementations:
     my $ls = $iface->COMMAND;
     $iface->PIPEDATA( [ map { pack("A80",$_) } split(/\n/, `$ls`) ]);
     warn "   Data: ".Dumper($iface->PIPEDATA);
+    # force an error
+    die "MY_CUSTOM_ERROR" unless $iface->PIPEDATA;
     return 1;
   }
 

@@ -2,10 +2,12 @@ package SAP::Rfc;
 
 use strict;
 
+require 5.005;
+
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.15';
+$VERSION = '1.16';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { $^O =~ /hpux/ ? 0x00 : 0x01 }

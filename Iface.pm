@@ -1,6 +1,9 @@
 package SAP::Iface;
 
 use strict;
+
+require 5.005;
+
 use vars qw($VERSION $AUTOLOAD);
 
 use constant RFCIMPORT     => 0;
@@ -31,7 +34,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '1.10';
+$VERSION = '1.16';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {

@@ -39,7 +39,7 @@
 
 static RFC_RC DLL_CALL_BACK_FUNCTION handle_request( RFC_HANDLE handle, SV* sv_iface );
 static RFC_RC DLL_CALL_BACK_FUNCTION do_docu( RFC_HANDLE handle );
-static SV* call_handler(SV* sv_handler, SV* sv_iface, SV* sv_data);
+static SV* call_handler(SV* sv_callback_handler, SV* sv_iface, SV* sv_data);
 
 static RFC_RC install_docu    ( RFC_HANDLE handle );
 
@@ -52,7 +52,6 @@ SV* sv_store_docu;
 
 /* standard error call back handler - installed into connnection object */
 static void  DLL_CALL_BACK_FUNCTION  rfc_error( char * operation ){
-
   RFC_ERROR_INFO_EX  error_info;
   
   RfcLastErrorEx(&error_info);
@@ -61,6 +60,17 @@ static void  DLL_CALL_BACK_FUNCTION  rfc_error( char * operation ){
       error_info.group, 
       error_info.key,
       error_info.message );
+
+/*
+  RFC_ERROR_INFO  error_info;
+  
+  RfcLastError(&error_info);
+  croak( "RFC Call/Key: %s \tStatus: %s \tMessage: %s\tInternal State:%s",
+      error_info.key,
+      error_info.status, 
+      error_info.message,
+      error_info.intstat );
+      */
 
 }
 
@@ -71,6 +81,7 @@ SV*  MyConnect(SV* connectstring){
     RFC_ENV            new_env;
     RFC_HANDLE         handle;
     RFC_ERROR_INFO_EX  error_info;
+    /* RFC_ERROR_INFO  error_info; */
     
     new_env.allocate = NULL;
     new_env.errorhandler = rfc_error;
@@ -85,6 +96,15 @@ SV*  MyConnect(SV* connectstring){
             error_info.group, 
             error_info.key,
             error_info.message );
+  
+    /*
+        RfcLastError(&error_info);
+        croak( "RFC Call/Key: %s \tStatus: %s \tMessage: %s\tInternal State:%s",
+            error_info.key,
+            error_info.status, 
+            error_info.message,
+            error_info.intstat );
+	    */
     };
  
     return newSViv( ( int ) handle );
@@ -166,6 +186,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
    char *             function;
    char *             exception;
    RFC_ERROR_INFO_EX  error_info;
+   /* RFC_ERROR_INFO     error_info; */
 
    int                tab_cnt, 
                       imp_cnt,
@@ -294,7 +315,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 				    myimports,
 				    mytables,
 				    &exception );
-
+  
    /* check the return code - if necessary construct an error message */
    if ( rc != RFC_OK ){
        RfcLastErrorEx( &error_info );
@@ -311,6 +332,24 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
    } else {
        hv_store(  hash,  (char *) "__RETURN_CODE__", 15, newSVpvf( "%d", RFC_OK ), 0 );
    };
+
+   /*
+   if ( rc != RFC_OK ){
+       RfcLastError( &error_info );
+     if (( rc == RFC_EXCEPTION ) ||
+         ( rc == RFC_SYS_EXCEPTION )) {
+       hv_store(  hash, (char *) "__RETURN_CODE__", 15,
+		  newSVpvf( "EXCEPT\t%s\tKEY\t%s\tSTATUS\t%s\tMESSAGE\t%sINTSTAT\t%s", exception, error_info.key, error_info.status, error_info.message, error_info.intstat ),
+		  0 );
+     } else {
+       hv_store(  hash, (char *) "__RETURN_CODE__", 15,
+		  newSVpvf( "EXCEPT\t%s\tKEY\t%s\tSTATUS\t%s\tMESSAGE\t%sINTSTAT\t%s", exception, error_info.key, error_info.status, error_info.message, error_info.intstat ),
+		  0 );
+     };
+   } else {
+       hv_store(  hash,  (char *) "__RETURN_CODE__", 15, newSVpvf( "%d", RFC_OK ), 0 );
+   };
+   */
 
 
    /* free up the used memory for export parameters */
@@ -551,7 +590,7 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
     SV*           h_key;
     SV*           sv_type;
     SV*           sv_result;
-    SV*           sv_handler;
+    SV*           sv_callback_handler;
     SV*           sv_self;
 
     HV*           hash = newHV();
@@ -688,9 +727,9 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
     };
 
     /* fprintf(stderr, "got data - now do callback\n"); */
-    sv_handler = *hv_fetch(h_parms, (char *) "__HANDLER__", 11, FALSE);
+    sv_callback_handler = *hv_fetch(h_parms, (char *) "__HANDLER__", 11, FALSE);
     sv_self = *hv_fetch(h_parms, (char *) "__SELF__", 8, FALSE);
-    sv_result = call_handler( sv_handler, sv_self, newRV_noinc( (SV*) hash) );
+    sv_result = call_handler( sv_callback_handler, sv_self, newRV_noinc( (SV*) hash) );
 
     /* if( rc != RFC_OK ) return rc; */
 
@@ -798,7 +837,7 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 }
 
 
-SV* call_handler(SV* sv_handler, SV* sv_iface, SV* sv_data)
+SV* call_handler(SV* sv_callback_handler, SV* sv_iface, SV* sv_data)
 {
 
     int result;
@@ -811,14 +850,14 @@ SV* call_handler(SV* sv_handler, SV* sv_iface, SV* sv_data)
     PUSHMARK(SP);
 
     /* push the pkt onto the stack */
-    XPUSHs( sv_handler );
+    XPUSHs( sv_callback_handler );
     XPUSHs( sv_iface );
     XPUSHs( sv_2mortal( sv_data ) );
 
     /* stash the stack point */
     PUTBACK;
 
-    //result = perl_call_sv(sv_handler, G_EVAL | G_SCALAR );
+    /*result = perl_call_sv(sv_callback_handler, G_EVAL | G_SCALAR ); */
     result = perl_call_pv("SAP::Rfc::Handler", G_EVAL | G_SCALAR );
 
     /* disassemble the results off the argument stack */
@@ -826,8 +865,8 @@ SV* call_handler(SV* sv_handler, SV* sv_iface, SV* sv_data)
         fprintf(stderr, "RFC callback - perl call errored: %s", SvPV(ERRSV,PL_na));
     SPAGAIN;
 
-    // was this handled or passed?
-    fprintf(stderr, "results are: %d \n", result);
+    /* was this handled or passed? */
+    /* fprintf(stderr, "results are: %d \n", result); */
     if (result > 0){
       sv_rvalue = newSVsv(POPs);
     } else {
@@ -876,7 +915,7 @@ static RFC_RC DLL_CALL_BACK_FUNCTION do_docu(  RFC_HANDLE handle )
     };
     parameter[0].name = NULL;
 
-    fprintf(stderr, "despatch RFC_DOCU\n");
+    /* fprintf(stderr, "despatch RFC_DOCU\n"); */
     rc = RfcSendData( handle, parameter, table );
 
     return rc;

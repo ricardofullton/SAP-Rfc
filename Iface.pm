@@ -367,25 +367,35 @@ The constructor requires the parameter value pairs to be passed as
 hash key values ( see SYNOPSIS ). 
 Generally you would not create one of these manually as it is far easier to use the "discovery" functionality of the SAP::Rfc->discover("RFCNAME") method.  This returns a fully formed interface object.  This is achieved by using standard RFCs supplied by SAP to look up the definition of an RFC interface and any associated structures.
 
-Methods:
-new
+=head1 METHODS
+
+=head2 new()
+
   use SAP::Iface;
   $iface = new SAP::Iface( NAME =>"RFC_READ_TABLE" );
-Create a new Interface object.
+  Create a new Interface object.
 
 
-$iface->PARM_NAME(' new value ')
-  Parameters and tables are autoloaded methods - than can be accessed like this to set and get their values.
+=head2 PARM_NAME()
+
+  $iface->PARM_NAME(' new value ')
+  Parameters and tables are autoloaded methods - than can be accessed 
+  like this to set and get their values.
 
 
-$iface->RFCTYPE_CHAR
-  Autoloaded methods are provided for all the constant definitions relating to SAP parameter types.
+=head2 RFCTYPE_CHAR()
+
+  Autoloaded methods are provided for all the constant definitions 
+  relating to SAP parameter types.
 
 
-$iface->name()
+=head2 name()
+
   Return the name of an interface.
 
-$iface->addParm(
+=head2 addParm()
+
+  $iface->addParm(
                  TYPE => SAP::Iface->RFCEXPORT,
                  INTYPE => SAP::Iface->RFCTYPE_CHAR,
                  NAME => 'A_NAME', 
@@ -395,52 +405,76 @@ $iface->addParm(
                  VALUE => 'the current value',
                  DECIMALS => 0,
                  LEN => 20 );
-Add an RFC interface parameter to the SAP::Iface definition - see SAP::Parm.
+  Add an RFC interface parameter to the SAP::Iface definition 
+  - see SAP::Parm.
 
 
-$iface->parm('PARM_NAME');
+=head2 parm()
+
+  $iface->parm('PARM_NAME');
   Return a reference to a named parameter object.
 
-$iface->parms();
+=head2 parms()
+
   Return a list of parameter objects for an interface.
 
-$iface->addTab(
+=head2 addTab()
+
+  $iface->addTab(
                 INTYPE => SAP::Iface->RFCTYPE_BYTE, 
                  NAME => 'NAME_OF_TABLE',
                  STRUCTURE =>
                      $rfc->structure('NAME_OF_STRUCTURE'), 
                  LEN => 35 );
-  Add an RFC interface table definition to the SAP::Iface object - see SAP::Tab.
+  Add an RFC interface table definition to the SAP::Iface object 
+    - see SAP::Tab.
 
 
-$iface->isTab('TAB_NAME');
+=head2 isTab()
+
+  $iface->isTab('TAB_NAME');
   Returns true if the named parameter is a table.
 
 
-$iface->tab('TAB_NAME');
+=head2 tab()
+
+  $iface->tab('TAB_NAME');
   Return a reference to the named table object - see SAP::Tab.
 
-$iface->tabs();
+=head2 tabs()
+
   Return a list of table objects for the SAPP::Iface object.
 
-$iface->emptyTables();
+=head2 emptyTables()
+
   Empty the contents of all the tables on a SAP::Iface object.
 
 
-$iface->addException('EXCEPTION_NAME');
+=head2 addException()
+
+  $iface->addException('EXCEPTION_NAME');
   Add an exception name to the interface.
 
-$iface->exception('EXCEPTION_NAME');
-  Return the named exception name - basically I dont do anything with exceptions yet except keep a list of names that could be checked against an RFC failure return code.
+=head2 exception()
 
-$iface->exceptions();
+  $iface->exception('EXCEPTION_NAME');
+  Return the named exception name - basically I dont do anything with 
+  exceptions yet except keep a list of names that could be checked
+  against an RFC failure return code.
+
+=head2 exceptions()
+
   Return a list of exception names associated with a SAP::Iface object.
 
-$iface->reset();
-  Empty all the tables and reset paramters to their default values - useful when you are doing multiple calls.
+=head2 reset()
 
-$iface->iface();
-  An internal method that generates the internal structure passed into the C routines.
+  Empty all the tables and reset paramters to their default values - 
+  useful when you are doing multiple calls.
+
+=head2 iface()
+
+  An internal method that generates the internal structure passed into 
+  the C routines.
 
 
 =cut
@@ -675,8 +709,10 @@ object ( SAP::Iface.pm ).
 The constructor requires the parameter value pairs to be passed as 
 hash key values ( see SYNOPSIS ).
 
-Methods:
-new
+=head1 METHODS
+
+=head2 new()
+
   use SAP::Tab;
   $tab1 = new SAP::Tab(
                 INTYPE => SAP::Iface->RFCTYPE_BYTE, 
@@ -685,43 +721,54 @@ new
                      $rfc->structure('NAME_OF_STRUCTURE'), 
                  LEN => 35 );
 
-$tab->rows()
+=head2 rows()
+
   @r = $tab1->rows( [ row1, row2, row3 .... ] );
   optionally set and Give the current rows of a table.
 
   or:
   $tab1->rows( [ { TEXT => "NAME LIKE 'SAPL\%RFC\%'", .... } ] );
-  pass in a list of hash refs where each hash ref is the key value pairs of the 
-  table structures fields ( as per the DDIC ).
+  pass in a list of hash refs where each hash ref is the key value pairs 
+  of the table structures fields ( as per the DDIC ).
 
-$tab->addRow()
+=head2 addRow()
+
   Add a row to the table contents.
 
-$tab->hashRows()
+=head2 hashRows()
+
   @r = $tab1->hashRows;
   This returns an array of hashes representing each row of a table.  
   The hashes are fieldname/value pairs of the row structure.
 
-$tab->nextRow()
-  shift the first row off the table contents, and return a hash ref of the field values as per the table structure.
+=head2 nextRow()
 
-$tab->rowCount()
+  shift the first row off the table contents, and return a hash ref of 
+  the field values as per the table structure.
+
+=head2 rowCount()
+
   $c = $tab1->rowCount();
   return the current number of rows in a table object.
 
-$tab->empty()
+=head2 empty()
+
   empty the row out of the table.
 
-$tab->name()
+=head2 name()
+
   get the name of the table object.
 
-$tab->intype()
+=head2 intype()
+
   Set or get the internal table type.
 
-$tab->leng()
+=head2 leng()
+
   Set or get the table row length.
 
-$tab->structure()
+=head2 structure()
+
   Set or get the structure object of the table - see SAP::Struct.
 
 
@@ -1030,8 +1077,10 @@ object ( SAP::Iface.pm ).
 The constructor requires the parameter value pairs to be passed as 
 hash key values ( see SYNOPSIS ).
 
-Methods:
-new
+=head1 METHODS
+
+=head2 new()
+
   use SAP::Parms;
   $imp1 = new SAP::Parms(
                  TYPE => SAP::Iface->RFCEXPORT,
@@ -1044,37 +1093,53 @@ new
                  DECIMALS => 0,
                  LEN => 20 );
 
-$p->value()
+=head2 value()
+
   $v = $imp1->value( [ val ] );
   optionally set and Give the current value.
 
   or - pass in a hash ref where the hash ref contains  key/value pairs
   for the fields in the complex parameters structure ( as per the DDIC ).
 
-$p->type()
-  $t = $imp1->type( [ type ] );
-  optionally set and Give the current value of type - this denotes whether this is an export or import parameter.
+=head2 type()
 
-$p->decimals()
+  $t = $imp1->type( [ type ] );
+  optionally set and Give the current value of type - this denotes 
+  whether this is an export or import parameter.
+
+=head2 decimals()
+
   Set or get the decimals place of the parameter.
 
-$p->intype()
+=head2 intype()
+
   Set or get the internal type ( as required by librfc ).
 
-$p->intvalue()
-  An internal method for translating the value of a parameter into the required native C format.
+=head2 intvalue()
 
-$p->default()
-    Set or get the place holder for the default value of a paramter - in order to reset the value of a parameter to the default you need to $p->value( $p->default );
-  This is really an internal method that $iface->reset calls on each parameter.
+  An internal method for translating the value of a parameter into 
+  the required native C format.
 
-$p->structure()
-  Set or get the structure object for a parameter - not all parameters will have an associated structures - only complex ones.  See SAP::Struc.
+=head2 default()
 
-$p->leng()
+    Set or get the place holder for the default value of a paramter 
+    - in order to reset the value of a parameter to the default you 
+    need to $p->value( $p->default );
+    This is really an internal method that $iface->reset calls on 
+    each parameter.
+
+=head2 structure()
+
+  Set or get the structure object for a parameter - not all 
+  parameters will have an associated structures - only complex 
+  ones.  See SAP::Struc.
+
+=head2 leng()
+
   Set or get the length attribute of a parameter.
 
-$p->name()
+=head2 name()
+
   Get the name of a parameter object.
 
 
@@ -1465,21 +1530,27 @@ This class is used to construct a valid structure object - a structure object th
 The constructor requires the parameter value pairs to be passed as 
 hash key values ( see SYNOPSIS ).  The value of each field can either be accessed through $str->fieldValue(field1), or through the autoloaded method of the field name eg. $str->FIELD1().  
 
-Methods:
-new
+=METHODS
+
+=head2 new()
+
   use SAP::Struc;
   $str = new SAP::Struc( NAME => XYZ );
 
 
-addField
+=head2 addField()
+
   use SAP::Struc;
   $str = new SAP::Struc( NAME => XYZ );
   $str->addField( NAME => field1,
                   INTYPE => chars );
-  add a new field into the structure object.  The field is given a position counter of the number of the previous number of fields + 1.  Name is mandatory, but type will be defaulted to chars if omitted.
+  add a new field into the structure object.  The field is given a 
+  position counter of the number of the previous number of fields + 1.
+  Name is mandatory, but type will be defaulted to chars if omitted.
 
 
-deleteField
+=head2 deleteField()
+
   use SAP::Struc;
   $str = new SAP::Struc( NAME => XYZ );
   $str->addField( NAME => field1,
@@ -1488,34 +1559,43 @@ deleteField
   Allow fields to be deleted from a structure.
 
 
-name
+=head2 name()
+
   $name = $str->name();
   Get the name of the structure.
 
 
-fieldName
+=head2 fieldName()
+
   Get the field name by position in the structure - $s->fieldName( 3 ).
 
 
-fieldType
+=head2 fieldType()
+
   $ftype = $str->fieldType(field1, [ new field type ]);
-  Set/Get the SAP BC field type of a component field of the structure.  This will force the overall value of the structure to be recalculated.
+  Set/Get the SAP BC field type of a component field of the structure.
+  This will force the overall value of the structure to be recalculated.
 
 
-value
+=head2 value()
+
   $fvalue = $str->value('new value');
   Set/Get the value of the whole structure.
 
 
-fieldValue
+=head2 fieldValue()
+
   $fvalue = $str->fieldValue(field1,
                           [new component value]);
-  Set/Get the value of a component field of the structure.  This will force the overall value of the structure to be recalculated.
+  Set/Get the value of a component field of the structure.  This will 
+  force the overall value of the structure to be recalculated.
 
 
-fields
+=head2 fields()
+
   @f = &$struct->fields();
-  Return an array of the fields of a structure sorted in positional order.
+  Return an array of the fields of a structure sorted in positional
+  order.
 
 
 =head1 Exported constants

@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.21';
+$VERSION = '1.22';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { $^O =~ /hpux/ ? 0x00 : 0x01 }
@@ -615,7 +615,8 @@ sub callrfc {
   };
   
   if ( $result->{'__RETURN_CODE__'} ne "0" ){
-      die "RFC call falied: ".$result->{'__RETURN_CODE__'};
+      $self->{'ERROR'} = $result->{'__RETURN_CODE__'};
+      die "RFC call failed: ".$result->{'__RETURN_CODE__'};
   } else {
       map {
 	  $_->intvalue( intoext( $_, $result->{$_->name()} ) )
@@ -686,10 +687,7 @@ sub error{
 
 =head1 NAME
 
-SAP::Rfc - Perl extension for performing RFC Function calls against an SAP R/3
-System.  Please refer to the README file found with this distribution.
-This Distribution also allows the creation of registered RFCs so that an SAP
-system can call arbitrary Perl code created in assigned callbacks
+SAP::Rfc - RFC Function calls against an SAP R/3 System
 
 =head1 SYNOPSIS
 
@@ -723,80 +721,86 @@ $rfc->close();
 
 =head1 DESCRIPTION
 
-  The best way to describe this package is to give a brief over view, and
-  then launch into several examples.
-  The SAP::Rfc package works in concert with several other packages that
-  also come with same distribution, these are SAP::Iface, SAP::Parm,
-  SAP::Tab, and SAP::Struc.  These come
-  together to give you an object oriented programming interface to
-  performing RFC function calls to SAP from a UNIX based platform with
-  your favourite programming language - Perl.
-  A SAP::Rfc object holds together one ( and only one ) connection to an
-  SAP system at a time.  The SAP::Rfc object can hold one or many SAP::Iface
-  objects, each of which equate to the definition of an RFC Function in
-  SAP ( trans SE37 ). Each SAP::Iface object holds one or many
-  SAP::Parm, and/or SAP::Tab objects, corresponding to
-  the RFC Interface definition in SAP ( SE37 ).
-  For all SAP::Tab objects, and for complex SAP::Parm objects,
-   a SAP::Struc object can be defined.  This equates to a
-  structure definition in the data dictionary ( SE11 ).
-  Because the manual definition of interfaces and structures is a boring
-  and tiresome exercise, there are specific methods provided to 
-  automatically discover, and add the appropriate interface definitions
-  for an RFC Function module to the SAP::Rfc object ( see methods
-  discover, and structure of SAP::Rfc ).
+SAP::Rfc - is a Perl extension for performing RFC Function calls against an SAP R/3 System.  Please refer to the README file found with this distribution.  This Distribution also allows the creation of registered RFCs so that an SAP system can call arbitrary Perl code created in assigned callbacks.
+
+The best way to describe this package is to give a brief over view, and then launch into several examples.  The SAP::Rfc package works in concert with several other packages that also come with same distribution, these are SAP::Iface, SAP::Parm, SAP::Tab, and SAP::Struc.  These come together to give you an object oriented programming interface to performing RFC function calls to SAP from a UNIX based platform with your favourite programming language - Perl.  A SAP::Rfc object holds together one ( and only one ) connection to an SAP system at a time.  The SAP::Rfc object can hold one or many SAP::Iface objects, each of which equate to the definition of an RFC Function in SAP ( trans SE37 ). Each SAP::Iface object holds one or many SAP::Parm, and/or SAP::Tab objects, corresponding to the RFC Interface definition in SAP ( SE37 ).
+
+For all SAP::Tab objects, and for complex SAP::Parm objects, a SAP::Struc object can be defined.  This equates to a structure definition in the data dictionary ( SE11 ).  Because the manual definition of interfaces and structures is a boring and tiresome exercise, there are specific methods provided to automatically discover, and add the appropriate interface definitions for an RFC Function module to the SAP::Rfc object ( see methods discover, and structure of SAP::Rfc ).
 
 
 =head1 METHODS:
 
-$rfc->PARM_NAME( 'a value ')
-  The parameter or tables can be accessed through autoloaded method calls - this can be useful for setting or getting the parameter values.
+=head2 PARAM_NAME()
 
+  $rfc->PARM_NAME( 'a value ')
 
-discover
+  The parameter or tables can be accessed through autoloaded method calls
+  - this can be useful for setting or getting the parameter values.
+
+=head2 discover()
+
   $iface = $rfc->discover('RFC_READ_REPORT');
-  Discover an RFC interface definition, and automaticlly add it to an SAP::Rfc object.  This will also define all associated SAP::Parm, SAP::Tab, and SAP::Struc objects.
+  Discover an RFC interface definition, and automaticlly add it to an 
+  SAP::Rfc object.  This will also define all associated SAP::Parm, 
+  SAP::Tab, and SAP::Struc objects.
 
 
-structure
+=head2 structure()
+
   $str = $rfc->structure('QTAB');
-  Discover and return the definition of a valid data dictionary structure.  This could be subsequently used with an SAP::Parm, or SAP::Tab object.
+  Discover and return the definition of a valid data dictionary 
+  structure.  This could be subsequently used with an SAP::Parm, or 
+  SAP::Tab object.
 
 
 
-is_connected
+=head2 is_connected()
+
   if ($rfc->is_connected()) {
   } else {
   };
   Test that the SAP::Rfc object is connected to the SAP system.
 
 
-sapinfo
+=head2 sapinfo()
+
   %info = $rfc->sapinfo();
   map { print "key: $_ = ", $info{$_}, "\n" }
         sort keys %info;
-  Return a hash of the values supplied by the RFC_SYSTEM_INFO function module.  This function is only properly called once, and the data is cached until the RFC connection is closed - then it will be reset next call.
+  Return a hash of the values supplied by the RFC_SYSTEM_INFO 
+  function module.  This function is only properly called once, and
+  the data is cached until the RFC connection is closed - then it 
+  will be reset next call.
   
 
 
-callrfc
-  $rfc->callrfc('RFC_READ_TABLE');
-  Do the actual RFC call - this installs all the Export, Import, and Table Parameters in the actual C library of the XS extension, does the RFC call, Retrieves the table contents, and import parameter contents, and then cleans the libraries storage space again.
+=head2 callrfc()
+
+  $rfc->callrfc($iface);
+  Do the actual RFC call - this installs all the Export, Import, and
+  Table Parameters in the actual C library of the XS extension, does
+  the RFC call, Retrieves the table contents, and import parameter
+  contents, and then cleans the libraries storage space again.
 
 
-close
+=head2 close()
+
   $rfc->close();
-  Close the current open RFC connection to an SAP system, and then reset cached sapinfo data.
+  Close the current open RFC connection to an SAP system, and then 
+  reset cached sapinfo data.
 
 
-error
+=head2 error()
+
   $rfc->error();
-  Returns error string if previous call returned undef (currenty supported for discover, structure, is_connected and sapinfo).
+  Returns error string if previous call returned undef (currenty 
+  supported for discover, structure, is_connected and sapinfo).
 
-accept()
-This is the main function to initiate a registered RFC. Consider this example that implements the
-same functionality as the standard rfcexec executable that comes with all SAP R/3 server 
-implementations:
+=head2 accept()
+
+This is the main function to initiate a registered RFC. Consider this
+example that implements the same functionality as the standard rfcexec
+executable that comes with all SAP R/3 server implementations:
 
   use SAP::Rfc;
   use SAP::Iface;

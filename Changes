@@ -175,3 +175,7 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - Tidy up some warnings
  - do some byte order checks for INT
 
+1.22 Fri Jan  9 07:59:27 NZDT 2004
+ - set the error data before die is called on $rfc->callrfc().  This means that you cal still retrieve the error message after the call has failed.
+ - make cosmetic changes to Rfc.pm documentation
+ - both contributions from Adam Trickett.

@@ -5,7 +5,7 @@ use strict;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.05';
+$VERSION = '1.06';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { 0x01 }
@@ -132,7 +132,7 @@ sub new {
     map { delete $self->{$_} unless exists $VALID->{$_} } keys %{$self};
 
 # create the connection string and login to SAP
-    warn "THE LOGIN STRING: ".login_string( $self )."\n";
+    #warn "THE LOGIN STRING: ".login_string( $self )."\n";
     my $conn = MyConnect( login_string( $self ) );
 
     die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
@@ -293,9 +293,10 @@ sub discover{
 #      } elsif ( ($datatype eq " " or ! $datatype ) and $type ne "X"){
       } elsif ( 
       # new style
-         ( $info->{'RFCSAPRL'} =~ /^6/ and $datatype eq "u" and $field eq "" and $type ne "X")
-      # old style
-      or ( $info->{'RFCSAPRL'} !~ /^6/ and ($datatype eq " " or ! $datatype ) and $type ne "X")
+         ( $datatype eq "u" or $datatype eq "h" or $datatype eq " " or ! $datatype ) and $field eq "" and $type ne "X"
+#         ( $info->{'RFCSAPRL'} =~ /^6/ and ( $datatype eq "u" or $datatype eq "h" ) and $field eq "" and $type ne "X")
+#      # old style
+#      or ( $info->{'RFCSAPRL'} !~ /^6/ and ($datatype eq " " or ! $datatype ) and $type ne "X")
               ){
 	  # do a structure object
 #	  print STDERR " $name creating a structure: name - $tabname - field - $field - $datatype - $type\n";

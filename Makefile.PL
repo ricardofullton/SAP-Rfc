@@ -12,7 +12,7 @@ WriteMakefile(
     'LINKTYPE'	=> 'dynamic',
     'VERSION_FROM'	=> 'Rfc.pm',
     'NAME'	=> 'SAP::Rfc',
-    'DEFINE'	=> '',
+     DEFINE => '-D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE'),
 
 # These lines need to be modified for each UNIX flavour - the rfcsdk
 # has the information regarding where libs and incs resides for each

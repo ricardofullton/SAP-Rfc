@@ -795,6 +795,7 @@ sub type {
 sub changed {
 
   my $self = shift;
+  $self->{CHANGED} = 1 if @_;
   return $self->{'CHANGED'};
 
 }
@@ -827,27 +828,35 @@ sub value {
 
   my $self = shift;
 #  print STDERR "setting value: ".$self->name()." to ", @_,"\n";
+
+  #  there is a value
   if (@_){
     $self->{'VALUE'} = shift;
+    $self->changed(1);
+    #  it was passed in a hash
     if (ref($self->{'VALUE'}) eq 'HASH'){
       my $str = $self->structure();
       map { $str->$_($self->{'VALUE'}->{$_}) } keys %{$self->{'VALUE'}};
       $self->{'VALUE'} = $str->value;
       $str->value("");
+      return $self->{'VALUE'};
     } else {
-      $self->{'CHANGED'} = $self->{'VALUE'} eq $self->{'DEFAULT'} ? 0 : 1;
+      # no hash - but is a structure
+      if (my $s = $self->structure ){
+        $s->value( $self->{'VALUE'} ); 
+        my $flds = {};
+        map {  $flds->{$_} = $s->$_() } ( $s->fields );
+        return $flds;
+      } else {
+        # no hash and no structure
+        $self->leng(length($self->{'VALUE'})) 
+	    if $self->intype() == RFCTYPE_CHAR ||
+	       $self->intype() == RFCTYPE_BYTE;
+        return $self->{'VALUE'};
+      }
     }
-    $self->leng(length($self->{'VALUE'}));
   }
-#  print STDERR " value for: ".$self->name()." is ", $self->{'VALUE'},"\n";
-  if (my $s = $self->structure ){
-    $s->value( $self->{'VALUE'} ); 
-    my $flds = {};
-    map {  $flds->{$_} = $s->$_() } ( $s->fields );
-    return $flds;
-  } else {
-    return $self->{'VALUE'};
-  }
+  return $self->{'VALUE'};
 
 }
 

@@ -20,12 +20,6 @@ static void  DLL_CALL_BACK_FUNCTION  rfc_error( char * operation ){
 
   RFC_ERROR_INFO_EX  error_info;
   
-  //fprintf( stderr, "RFC Call/Exception: %s\n", operation );
-  //RfcLastErrorEx(&error_info);
-  //fprintf( stderr, "\nGroup       Error group %d", error_info.group );
-  //fprintf( stderr, "\nKey         %s", error_info.key );
-  //fprintf( stderr, "\nMessage     %s\n", error_info.message );
-  //exit(0);
   RfcLastErrorEx(&error_info);
   croak( "RFC Call/Exception: %s \tError group: %d \tKey: %s \tMessage: %s",
       operation,
@@ -47,15 +41,11 @@ SV*  MyConnect(SV* connectstring){
     new_env.errorhandler = rfc_error;
     RfcEnvironment( &new_env );
     
-    //fprintf(stderr, "CONNECT: %s\n", connectstring);
     handle = RfcOpenEx(SvPV(connectstring, SvCUR(connectstring)),
 		       &error_info);
 
     if (handle == RFC_HANDLE_NULL){
 	RfcLastErrorEx(&error_info);
-	//fprintf(stderr, "GROUP \t %d \t KEY \t %s \t MESSAGE \t %s \0",
-        //         error_info.group, error_info.key, error_info.message );
-	//exit(0);
         croak( "RFC Call/Exception: Connection Failed \tError group: %d \tKey: %s \tMessage: %s",
             error_info.group, 
             error_info.key,
@@ -94,8 +84,8 @@ static void * MyValue( SV* type, SV* value, SV* length, int copy ){
 	return 0;
     memset(ptr, 0, len + 1);
     switch ( SvIV( type ) ){
-//      case RFCTYPE_INT:
-//      case RFCTYPE_FLOAT:
+/*      case RFCTYPE_INT:
+        case RFCTYPE_FLOAT:    */
       default:
 /*  All the other SAP internal data types
         case RFCTYPE_CHAR:
@@ -181,7 +171,6 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 					       *hv_fetch(p_hash, (char *) "LEN", 3, FALSE), FALSE );
 	   myimports[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
 	   myimports[imp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
-	   //fprintf(stderr, "import: %s value: %s \n", myimports[imp_cnt].name, myimports[imp_cnt].addr);
 	   ++imp_cnt;
 	   break;
 
@@ -198,7 +187,6 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 					       *hv_fetch(p_hash, (char *) "LEN", 3, FALSE), TRUE );
 	   myexports[exp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
 	   myexports[exp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
-	   //fprintf(stderr, "export: %s value: %s \n", myexports[exp_cnt].name, myexports[exp_cnt].addr);
 	   ++exp_cnt;
 
 	   break;
@@ -311,8 +299,8 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
        };
        if ( myimports[imp_cnt].name != NULL ){
          switch ( myimports[imp_cnt].type ){
-//	 case RFCTYPE_INT:
-//	 case RFCTYPE_FLOAT:
+/*	 case RFCTYPE_INT:
+	 case RFCTYPE_FLOAT:    */
 	 default:
 	   /*  All the other SAP internal data types
 	       case RFCTYPE_CHAR:
@@ -343,7 +331,11 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 	   break;
        };
        if ( mytables[tab_cnt].name != NULL ){
+#ifdef DOIBMWKRND
+	   hv_store(  hash, mytables[tab_cnt].name, mytables[tab_cnt].nlen, newRV_noinc( array = newAV() ), 0);
+#else
 	   hv_store(  hash, mytables[tab_cnt].name, mytables[tab_cnt].nlen, newRV_noinc( (SV*) array = newAV() ), 0);
+#endif
 	   /*  grab each table row and push onto an array */
 	   for (irow = 1; irow <=  ItFill(mytables[tab_cnt].ithandle); irow++){
 	       av_push( array, newSVpv( ItGetLine( mytables[tab_cnt].ithandle, irow ), mytables[tab_cnt].leng ) );

@@ -5,6 +5,9 @@ use Data::Dumper;
 #   get a list of report names from table TRDIR and 
 #   then get the source code of each
 
+#print "VERSION: ".$SAP::Rfc::VERSION ."\n";
+#exit 0;
+
 
 my $rfc = new SAP::Rfc(
               ASHOST   => 'localhost',
@@ -47,11 +50,7 @@ for my $row ( $it->DATA ){
     $tot += $rows;
     print "No. $c PROGRAM: $prog   ROWS: $rows  TOTAL: $tot\n";
 #    print "CODE: ".join("\n",( $if->QTAB ));
-#    print Dumper( $if );
-    my $str = $if->parm('TRDIR')->structure();
-    $str->value( $if->TRDIR );
-#    map { print "FIELD: $_ = ".$str->$_() ."\n" } ($str->fields );
-#    print Dumper( $str );
+    #print Dumper( $if->TRDIR() );
 
 }
 

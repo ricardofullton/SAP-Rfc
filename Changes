@@ -119,3 +119,9 @@ Fixed a problem with mis-interpreting integers courtesy of Thomas Gobel
 1.05 Wed Jan 29 07:00:04 GMT 2003
 Fixed a long time (annoying) problem with numeric comparison of alpha
 on checking the RETURN_CODE of an RFC call.
+
+1.06 Thu Jan 30 19:30:40 GMT 2003
+Added another internal type for structures - h - see EXID/INTYPE (there maybe more in the future)
+Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, and Hashes passed into Parameters for structures etc.
+
+

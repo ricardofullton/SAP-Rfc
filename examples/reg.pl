@@ -6,6 +6,20 @@ use SAP::Rfc;
 use SAP::Iface;
 use Data::Dumper;
 
+
+use DBI qw(:sql_types);
+use vars qw($DEBUG $DBH);
+$DEBUG = 1;
+
+my $config = {
+       'DB' => 'mysql',
+       'DBName' => 'mysql',
+       'DBHost' => 'tool00.bydeluxe.net',
+       'DBUser' => 'root',
+       'DBPasswd' => 'mental',
+       };
+
+
 #   Register an external program to provide outbound
 #   RFCs
 
@@ -77,4 +91,10 @@ sub do_remote_pipe {
   return 1;
 
 }
+
+
+sub debug{
+  return unless $DEBUG;
+    print  STDERR scalar localtime().": ", @_, "\n";
+    }
 

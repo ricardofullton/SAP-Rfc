@@ -31,7 +31,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '1.09';
+$VERSION = '1.10';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -129,6 +129,17 @@ sub name {
 
   my $self = shift;
   return $self->{NAME};
+
+}
+
+
+# set/get the handler
+sub handler {
+
+  my $self = shift;
+  $self->{'HANDLER'} = shift @_ 
+       if scalar @_ == 1;
+  return $self->{'HANDLER'};
 
 }
 

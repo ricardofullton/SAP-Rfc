@@ -542,7 +542,7 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
        /* grab each parameter hash */
        h_entry = hv_iternext( h_parms );
        h_key = hv_iterkeysv( h_entry );
-       /* fprintf(stderr, "processing parameter: %s\n", SvPV(h_key, PL_na)); */
+       /* fprintf(stderr, "processing parameter: %s\n", SvPV(h_key, PL_na));  */
        if (strncmp("__HANDLER__", SvPV(h_key, PL_na),11) == 0 ||
            strncmp("__SELF__", SvPV(h_key, PL_na),8) == 0){
           /* fprintf(stderr, "dont want the handler...\n"); */
@@ -640,8 +640,12 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 	   hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( (SV*) array = newAV() ), 0);
 #endif
 	   /*  grab each table row and push onto an array */
-	   for (irow = 1; irow <=  ItFill(table[tab_cnt].ithandle); irow++){
-	       av_push( array, newSVpv( ItGetLine( table[tab_cnt].ithandle, irow ), table[tab_cnt].leng ) );
+	   if (table[tab_cnt].ithandle != NULL){
+	      /* fprintf(stderr, "going to check count\n");
+	      fprintf(stderr, "the table count is: %d \n", ItFill(table[tab_cnt].ithandle)); */
+	      for (irow = 1; irow <=  ItFill(table[tab_cnt].ithandle); irow++){
+	          av_push( array, newSVpv( ItGetLine( table[tab_cnt].ithandle, irow ), table[tab_cnt].leng ) );
+	      };
 	   };
 	   
 	   free(table[tab_cnt].name);

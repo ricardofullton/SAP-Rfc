@@ -143,3 +143,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.11 Thu May  1 11:28:28 BST 2003
   - major revision to include registered RFC with a callback framework
     to enable access from SAP to Perl code.
+
+1.12 Wed May  7 10:04:16 BST 2003
+  - fix a bug with empty tables coming in from registered RFC calls

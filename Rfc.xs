@@ -40,6 +40,7 @@
 static RFC_RC DLL_CALL_BACK_FUNCTION handle_request( RFC_HANDLE handle, SV* sv_iface );
 static RFC_RC DLL_CALL_BACK_FUNCTION do_docu( RFC_HANDLE handle );
 static SV* call_handler(SV* sv_callback_handler, SV* sv_iface, SV* sv_data);
+void get_attributes(RFC_HANDLE rfc_handle, HV* hv_sysinfo);
 
 static RFC_RC install_docu    ( RFC_HANDLE handle );
 
@@ -440,7 +441,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 
 
 
-SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
+SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
 {
    /* initialized data */
    static RFC_ENV    env;
@@ -448,6 +449,7 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
    RFC_RC     rc;
    RFC_FUNCTIONNAME funcname;
    HV* p_hash;
+   HV* p_saprfc;
    SV* sv_iface;
 
    /*
@@ -471,7 +473,9 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
    if( rc != RFC_OK )
    {
      RfcAbort( handle, "Initialization error" );
-     return newSViv(0);
+     p_saprfc = (HV*)SvRV( sv_saprfc );
+     hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("Initialisation error in the gateway"), 0);
+     return newSViv(-1);
    }
 
    sv_store_docu = sv_docu;
@@ -504,11 +508,17 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
 
      rc = RfcGetName(handle, funcname);
 
+     if (rc != RFC_OK){
+       /* fprintf(stderr, "RFC connection failure code: %d \n", rc); */
+       p_saprfc = (HV*)SvRV( sv_saprfc );
+       hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("RFC connection failure code: %d", rc), 0);
+       continue;
+     }
 
      /* check at this point for registered functions */
      if ( ! hv_exists(p_hash, funcname, strlen(funcname)) ){
        fprintf(stderr, "the MISSING Function Name is: %s\n", funcname);
-       RfcRaise( handle, "FUNCTION Does not exist" );
+       RfcRaise( handle, "FUNCTION_MISSING" );
        continue;
      }
 
@@ -1062,8 +1072,9 @@ MyRfcCallReceive (sv_handle, sv_function, iface)
 	SV *	iface
 
 SV *
-my_accept (sv_conn, sv_docu, sv_ifaces)
+my_accept (sv_conn, sv_docu, sv_ifaces, sv_saprfc)
 	SV *	sv_conn
 	SV *	sv_docu
 	SV *	sv_ifaces
+	SV *	sv_saprfc
 

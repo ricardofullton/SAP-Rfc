@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.25';
+$VERSION = '1.26';
 @ISA = qw(DynaLoader Exporter);
 
 my $EXCEPTION_ONLY = 0;
@@ -226,7 +226,7 @@ sub accept {
 
   my $ifaces = { map { $_->name() => $_->iface(1) } values %{$self->{'INTERFACES'}} };
 
-  return my_accept($conn, $docu, $ifaces);
+  return my_accept($conn, $docu, $ifaces, $self);
 
 }
 
@@ -797,7 +797,7 @@ For all SAP::Tab objects, and for complex SAP::Parm objects, a SAP::Struc object
 =head2 error()
 
   $rfc->error();
-  Returns error string if previous call returned undef (currenty 
+  Returns error string if previous call returned undef (currently 
   supported for discover, structure, is_connected and sapinfo).
 
 =head2 accept()
@@ -864,6 +864,9 @@ executable that comes with all SAP R/3 server implementations:
     die "MY_CUSTOM_ERROR" unless $iface->PIPEDATA;
     return 1;
   }
+
+  If accept() returns a defined value then the $rfc->error() can be 
+  checked for an associated error message.
 
 
 =head1 AUTHOR

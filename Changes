@@ -192,3 +192,7 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  system info vital statistics for the current RFC call.  This method only returns
  information within a registered RFC scenario.
 
+1.26 Thu Apr 22 11:25:53 NZST 2004
+ - added correct handling of a gateway connection error, so that the accept() loop
+   exits.  An error message is reported, and can be accessed via $rfc->error().
+

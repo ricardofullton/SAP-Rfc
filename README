@@ -67,12 +67,13 @@ With this in mind - this package has been developed under Linux, so the installa
 After the fundamental RFC interface has been developed, the intention is then to extend this to add interface discovery, and a BAPI abstraction layer - but this is down the track.
 
 SAP have kindly provided the RFCSDK for Linux on the OSS ftp service.  This can be retrieved from sapserv3, currently in the "unsupported directory" - this should change before the end of 1999 to being fully supported. See OSS note 53459 for details.
+
+*Note: 29.11.2002 - this is old info from circa 1999 - I am currently using RedHat 8.0 and either the librfc or librfccm from R3 4.6C.
+
 This must be installed before you continue.  I use Redhat 6.1 or Slackware 7.0 - other distributions will probably work, but take heed of the instructions provided with the rfcsdk rpm files.
 Once you have the rfcsdk installed carry on!
 
-
-Ensure that you have installed the rfcsdk in /usr/sap/rfcsdk ( include|lib ) otherwise compile time will not know where to find the necessary header files / libraries - this is a hard coded directive at the top of the Rfc.pm file.
-
+Make sure that the LIBS and INC directive in the Makefile.PL points to the correct location of your OS's version of the rfcsdk -without this linking correctly nothing is going to work.
 
 After you have unpacked your kit, you should have all the files listed
 in MANIFEST.
@@ -89,4 +90,7 @@ In brief, the following should work on most systems:
 
 
 Cheers - Piers Harding - R/2 R/3 BASIS, IFACE, JAPH, whatever ...
+
+email: piers@cpan.org
+
 

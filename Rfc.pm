@@ -5,7 +5,7 @@ use strict;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.00';
+$VERSION = '1.01';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { 0x01 }

@@ -1,7 +1,7 @@
 package SAP::Config;
 
 #  This has been completely plagarised from DJ Adams
-# $Id: Config.pm,v 1.1 2001/07/20 08:50:30 piers Exp $
+# $Id: Config.pm,v 1.2 2001/05/30 08:47:57 piers Exp $
 
 use strict;
 use vars qw($CONFIGDIR);

@@ -8,7 +8,7 @@ use Data::Dumper;
 
 
 my $rfc = new SAP::Rfc(
-              ASHOST   => 'toad.local.net',
+              ASHOST   => 'localhost',
               USER     => 'DEVELOPER',
               PASSWD   => '19920706',
               LANG     => 'EN',

@@ -12,9 +12,19 @@ WriteMakefile(
     'LINKTYPE'	=> 'dynamic',
     'VERSION_FROM'	=> 'Rfc.pm',
     'NAME'	=> 'SAP::Rfc',
-    'DEFINE'	=> '',   
+    'DEFINE'	=> '',
+
+# These lines need to be modified for each UNIX flavour - the rfcsdk
+# has the information regarding where libs and incs resides for each
+# system type
+
     'LIBS'      => ['-lm -ldl -lpthread -L/usr/sap/rfcsdk/lib -lrfc'],
     'INC'       => '-I/usr/sap/rfcsdk/include',
+
+# change these lines for win32 to point to the corresponding libs and incs dir
+#    'LIBS'      => ['-lm -ldl -lpthread -LX:\pathto\rfcsdk\lib -lrfc32'],
+#    'INC'       => '-IX:\pathto\rfcsdk\include',
+
 );
 
 

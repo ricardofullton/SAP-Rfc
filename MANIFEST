@@ -5,11 +5,14 @@ MANIFEST
 Makefile.PL
 Rfc.pm
 Rfc.xs
-SOAP.pm
 Iface.pm
-Config.pm
-t/test.t
+lib/SAP/Config.pm
+t/00use.t
+t/01sap.t
 examples/tables.pl
 examples/reports.pl
 examples/makesoap.pl
 examples/reports.pl
+examples/lib/Apache/SAPSOAP.pm
+examples/lib/Apache/SAPSOAPServer.pm
+examples/lib/SAP/SOAP.pm

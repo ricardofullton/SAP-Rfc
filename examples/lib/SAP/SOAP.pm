@@ -52,13 +52,14 @@ sub soapRequest {
   my $name = $soap->dataof("/Envelope/Body/[1]")->name();
   print STDERR "NAME IS: ".$name ."\n";
   my ( $rfcname ) = $soap->dataof("/Envelope/Body/[1]")->name() =~ /.*\:(.*?)$/;
+  print STDERR "RFCNAME THING: ".$soap->dataof("/Envelope/Body/[1]")->name()."\n";
   print STDERR "RFCNAME IS: ".$rfcname ."\n";
 
   # Grab the cached interface or discover a new one
   my $iface = $self->{'INTERFACES'}->{$rfcname} || "";
   if ( ! $iface ) {
     eval {
-  	$iface = $self->discover( $rfcname );
+  	$iface = $self->discover( $rfcname || $name );
       };
     return $self->soapFault( 'Server', 
                               "SAP::Rfc discover of $rfcname failed",

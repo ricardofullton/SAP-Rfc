@@ -79,7 +79,9 @@ SAP have kindly provided the RFCSDK for Linux on the OSS ftp service.  This can 
 This must be installed before you continue.  I use Redhat 6.1 or Slackware 7.0 - other distributions will probably work, but take heed of the instructions provided with the rfcsdk rpm files.
 Once you have the rfcsdk installed carry on!
 
+<old>
 Make sure that the LIBS and INC directive in the Makefile.PL points to the correct location of your OS's version of the rfcsdk -without this linking correctly nothing is going to work.
+</old>
 
 After you have unpacked your kit, you should have all the files listed
 in MANIFEST.
@@ -92,6 +94,36 @@ In brief, the following should work on most systems:
 	make test  << provide all your host routing information.
 	make install
 
+Help on the build process is available by doing:
+        perl Makefile.PL --help
+
+and it say:
+
+The whole trouble with the build process is one 
+of determining what your OS is, and which RFC
+library needs to be linked in, and where that 
+library lives.
+
+To help with this there are two command line
+options that you can use to point me in the 
+right direction:
+
+(1) --source /usr/sap/rfcsdk
+  This tells me where to look for your installed
+  RFCSDK.  This must be the directory that contains
+  the ./lib and ./include directories of the RFCSDK
+  In the include directory must be saprfc.h etc.
+  By default, this looks in /usr/sap/rfcsdk
+
+(2) --addlibs ' -lm -ldl -lpthread '
+  This tells me what additional libraries need to
+  be passed in at link time - this can be anything
+  that you would put in LDFLAGS.
+  By default this is ' -lm -ldl -lpthread '
+
+Example:
+
+perl Makefile.PL --source /opt/rfcsdk --addlibs '-lsomethingwacky'
 
 
 

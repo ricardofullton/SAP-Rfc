@@ -1530,7 +1530,7 @@ This class is used to construct a valid structure object - a structure object th
 The constructor requires the parameter value pairs to be passed as 
 hash key values ( see SYNOPSIS ).  The value of each field can either be accessed through $str->fieldValue(field1), or through the autoloaded method of the field name eg. $str->FIELD1().  
 
-=METHODS
+=head1 METHODS
 
 =head2 new()
 

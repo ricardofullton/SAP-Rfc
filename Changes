@@ -179,3 +179,7 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - set the error data before die is called on $rfc->callrfc().  This means that you cal still retrieve the error message after the call has failed.
  - make cosmetic changes to Rfc.pm documentation
  - both contributions from Adam Trickett.
+
+1.23 Sat Jan 31 06:34:05 NZDT 2004
+ - changed the build process to automatically hunt for the libraries and includes
+ - assistance provided by Olivier (as usual) getting the win32 part right (thanks!)

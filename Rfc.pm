@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.16';
+$VERSION = '1.17';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { $^O =~ /hpux/ ? 0x00 : 0x01 }
@@ -376,7 +376,7 @@ sub discover{
       if ($datatype eq "C"){
 	  # Character
 	  $datatype = RFCTYPE_CHAR;
-	  $default = " " if $default =~ /^SPACE\s*$/;
+	  $default = " " if !$default ||  $default =~ /^SPACE\s*$/;
 #	  print STDERR "SET $name TO $default \n";
       } elsif ($datatype eq "X"){
 	  # Integer
@@ -407,7 +407,7 @@ sub discover{
       } elsif ($datatype eq "N"){
 	  #  Numchar
 	  $datatype = RFCTYPE_NUM;
-	  #$default = 0;
+	  $default = 0 unless $default;
 	  $default = sprintf("%0".$intlen."d", $default) 
 	      if $default == 0 || $default =~ /^[0-9]+$/;
       } elsif ($datatype eq "F"){

@@ -156,6 +156,11 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.15 Wed Jun  4 14:33:27 BST 2003
   - fix a bug with returning complex parameter values
+
 1.16 Sun Jun  8 04:59:36 BST 2003
   - remove printf for registered rfcs
   - fix backward compat issue with RfcLastEx, and RfcLast and Solaris
+
+1.17 Fri Aug 29 07:30:19 BST 2003
+  - fixed errors for the initial value as found by Oliver Boudry
+

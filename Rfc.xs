@@ -492,7 +492,6 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
    */
 #endif
 
-
    /*
     * enter main loop
     */

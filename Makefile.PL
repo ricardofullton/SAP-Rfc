@@ -18,7 +18,7 @@ WriteMakefile(
 # has the information regarding where libs and incs resides for each
 # system type
 
-    'LIBS'      => ['-lm -ldl -lpthread -L/usr/sap/rfcsdk/lib -lrfc'],
+    'LIBS'      => ['-lm -ldl -lpthread -L/usr/sap/rfcsdk/lib -lrfccm'],
     'INC'       => '-I/usr/sap/rfcsdk/include',
 
 # change these lines for win32 to point to the corresponding libs and incs dir
@@ -26,6 +26,10 @@ WriteMakefile(
 #    'INC'       => '-IX:\pathto\rfcsdk\include',
 
 );
+
+sub MY::makefile { '' }
+
+sub MY::processPL { '' }
 
 
 # Get input values for testing

@@ -86,6 +86,8 @@ SV*  MyConnect(SV* connectstring){
     new_env.allocate = NULL;
     new_env.errorhandler = rfc_error;
     RfcEnvironment( &new_env );
+
+    /* fprintf(stderr, "%s\n", SvPV(connectstring, SvCUR(connectstring))); */
     
     handle = RfcOpenEx(SvPV(connectstring, SvCUR(connectstring)),
 		       &error_info);

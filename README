@@ -68,6 +68,8 @@ code.  See the description of accept() in perldoc SAP::Rfc.
 
 With this in mind - this package has been developed under Linux, so the installation is therefore focused on this.  This does not mean that it will not work on other UNIX like flavours - to the contrary it probably will, it just hasn't been tested.  The package has been compiled and run under Win32 - special attention needs to be paid to the options found in the Makefile.PL file.
 
+Failing this - for Win32 people Olivier Boudry has kindly supplied me with a PPD based install package from Version 1.17 onwards - these can be found at http://www.piersharding.com/download/win32/ .
+
 After the fundamental RFC interface has been developed, the intention is then to extend this to add interface discovery, and a BAPI abstraction layer - but this is down the track.
 
 SAP have kindly provided the RFCSDK for Linux on the OSS ftp service.  This can be retrieved from sapserv3, currently in the "unsupported directory" - this should change before the end of 1999 to being fully supported. See OSS note 53459 for details.

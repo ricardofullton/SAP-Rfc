@@ -9,6 +9,10 @@ WriteMakefile(
     dist => { 'TARFLAGS'	=> 'cvf',
               'COMPRESS'        => 'gzip -9f',
     		'SUFFIX'	=> '.tgz'},
+    'AUTHOR' => 'Piers Harding <piers@cpan.org>',
+    'ABSTRACT' => 'Perl extension for performing RFC Function calls
+    agains an SAP R/3 System',
+
     'LINKTYPE'	=> 'dynamic',
     'VERSION_FROM'	=> 'Rfc.pm',
     'NAME'	=> 'SAP::Rfc',

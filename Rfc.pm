@@ -5,7 +5,7 @@ use strict;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.04';
+$VERSION = '1.05';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { 0x01 }
@@ -132,7 +132,7 @@ sub new {
     map { delete $self->{$_} unless exists $VALID->{$_} } keys %{$self};
 
 # create the connection string and login to SAP
-    #warn "THE LOGIN STRING: ".login_string( $self )."\n";
+    warn "THE LOGIN STRING: ".login_string( $self )."\n";
     my $conn = MyConnect( login_string( $self ) );
 
     die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
@@ -217,7 +217,7 @@ sub discover{
 			      "RFC_GET_FUNCTION_INTERFACE_P",
 			      $if );
   
-  return  undef if $ifc->{'__RETURN_CODE__'} != 0;
+  return  undef if $ifc->{'__RETURN_CODE__'} ne '0';
 
   my $interface = new SAP::Iface(NAME => $iface);
 #  print STDERR "VESION: ".Dumper($info)."\n";
@@ -374,7 +374,7 @@ sub structure{
 			      "RFC_GET_STRUCTURE_DEFINITION_P",
 			      $iface );
   
-  return  undef if $str->{'__RETURN_CODE__'} != 0;
+  return  undef if $str->{'__RETURN_CODE__'} ne '0';
   
   $struct = SAP::Struc->new( NAME => $struct );
   map {
@@ -409,7 +409,7 @@ sub is_connected{
   my $self = shift;
   my $ping = MyRfcCallReceive( $self->{HANDLE}, "RFC_PING", {} );
   
-  return  $ping->{'__RETURN_CODE__'} == 0 ? 1 : undef;
+  return  $ping->{'__RETURN_CODE__'} eq '0' ? 1 : undef;
   
 }
 
@@ -434,7 +434,7 @@ sub sapinfo {
 				  }
 				  );
   
-    return  undef if $sysinfo->{'__RETURN_CODE__'} != 0;
+    return  undef if $sysinfo->{'__RETURN_CODE__'} ne '0';
 
     my $pos = 0;
     my $info = {};
@@ -571,7 +571,7 @@ $rfc->close();
 
 =head1 DESCRIPTION
 
-  The best way to discribe this package is to give a brief over view, and
+  The best way to describe this package is to give a brief over view, and
   then launch into several examples.
   The SAP::Rfc package works in concert with several other packages that
   also come with same distribution, these are SAP::Iface, SAP::Parm,

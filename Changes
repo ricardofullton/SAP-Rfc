@@ -114,3 +114,8 @@ Fixed a problem with export parameters where empty structures (structures where 
 
 1.04 Fri Dec 20 09:42:14 GMT 2002
 Fixed a problem with mis-interpreting integers courtesy of Thomas Gobel
+
+
+1.05 Wed Jan 29 07:00:04 GMT 2003
+Fixed a long time (annoying) problem with numeric comparison of alpha
+on checking the RETURN_CODE of an RFC call.

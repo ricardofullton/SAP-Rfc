@@ -942,8 +942,6 @@ sub name {
 
 
 
-# Below is the stub of documentation for your module. You better edit it!
-
 =head1 NAME
 
 SAP::Parms - Perl extension for parsing and creating an SAP parameter to be added to an RFC Interface.
@@ -1380,8 +1378,6 @@ sub _unpack_structure {
 }
 
 
-
-# Below is the stub of documentation for your module. You better edit it!
 
 =head1 NAME
 

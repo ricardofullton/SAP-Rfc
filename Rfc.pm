@@ -3,7 +3,7 @@ package SAP::Rfc;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '0.95';
+$VERSION = '0.96';
 
 use SAP::Iface;
 

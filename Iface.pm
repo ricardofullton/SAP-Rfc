@@ -30,7 +30,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '0.94';
+$VERSION = '0.96';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -497,9 +497,12 @@ sub nextRow {
 
   my $self = shift;
   my $row = shift  @{$self->{VALUE}};
-
-  return { map {$self->structure->Fieldname( $_ ) => $row->[$_ - 1] }
-  ( 1 .. scalar @{[$self->structure->Fields]} ) } if $row;
+  if ( $row ) {
+    $self->structure->value( $row );
+    return  { map {$_ => $self->structure->$_() } ( $self->structure->fields ) };
+  } else {
+    return undef;
+  }
 
 }
 

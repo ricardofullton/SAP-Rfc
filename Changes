@@ -82,3 +82,7 @@ Fixed INT1 and INT2 support in Structures
 
 Fixed a sort order problem in SAP::Struc using cmp instead of <=> - Thank you Ivo Clarysse.
 Tidied up the documentation a bit as it is way out of date.
+
+0.96 Fri Dec 28 13:35:17 GMT 2001 
+
+Fixed a problem with sub nextRow in SAP::Iface, which was due to earlier changes in SAP::Struc.

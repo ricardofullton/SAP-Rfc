@@ -21,7 +21,7 @@ use constant RFCTYPE_INT   => 8;
 use constant RFCTYPE_INT2  => 9;
 use constant RFCTYPE_INT1  => 10;
 
-
+use Config;
 
 # Globals
 
@@ -34,7 +34,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '1.16';
+$VERSION = '1.21';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -450,6 +450,8 @@ package SAP::Tab;
 use strict;
 use vars qw($VERSION);
 
+use Config;
+
 # Globals
 
 use constant RFCIMPORT     => 0;
@@ -730,6 +732,8 @@ package SAP::Parms;
 use strict;
 use vars qw($VERSION);
 
+use Config;
+
 # Globals
 
 use constant RFCIMPORT     => 0;
@@ -923,7 +927,10 @@ sub intvalue {
       } elsif ( $self->intype() == RFCTYPE_INT){
 #	  return pack("I4", int($self->{VALUE}));
 	  #return pack("N", int($self->{VALUE}));
-	  return pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+#	  return pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+           
+#	  warn "byte order is: $Config{byteorder} - $self->{VALUE} \n";
+	  return pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
 	            int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT2){
 	  return pack("S", int($self->{VALUE}));
@@ -1078,6 +1085,8 @@ package SAP::Struc;
 
 use strict;
 use vars qw($VERSION $AUTOLOAD);
+
+use Config;
 
 #  require AutoLoader;
 
@@ -1313,7 +1322,8 @@ sub _pack_structure {
 #          $fld->{VALUE} = pack("I4",$fld->{VALUE});
 	  $fld->{VALUE} ||= 0;
           #$fld->{VALUE} = pack("N",$fld->{VALUE});
-	  $fld->{VALUE} = pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+	  #$fld->{VALUE} = pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+	  $fld->{VALUE} = pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
 	                       int($fld->{VALUE}));
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2
@@ -1404,7 +1414,8 @@ sub _unpack_structure {
 	# Long INT4
 #          $fld->{VALUE} = unpack("I4",$fld->{VALUE});
           $fld->{VALUE} = 
-	     unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+	     # unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
+	     unpack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
 	            $fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2

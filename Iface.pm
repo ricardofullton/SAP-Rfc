@@ -890,7 +890,14 @@ sub value {
       }
     }
   }
-  return $self->{'VALUE'};
+
+  # return a complex or simple parameter value
+  if ($self->structure()){
+    $self->structure->value( $self->{'VALUE'} );
+    return  { map {$_ => $self->structure->$_() } ( $self->structure->fields ) };
+  } else {
+    return $self->{'VALUE'};
+  }
 
 }
 

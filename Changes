@@ -150,5 +150,9 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.13 Tue May 13 16:26:30 BST 2003
   - added patch to fix global symbol load problem on HP-UX with help from
     Gerhard
+
 1.14 Wed May 21 18:04:47 BST 2003
   - fix compile issues under WIN32
+
+1.15 Wed Jun  4 14:33:27 BST 2003
+  - fix a bug with returning complex parameter values

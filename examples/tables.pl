@@ -1,6 +1,6 @@
 #!/usr/bin/perl
 use strict;
-use lib '../lib';
+#use lib '../lib';
 use SAP::Rfc;
 use Data::Dumper;
 
@@ -27,7 +27,7 @@ my $s = $rfc->structure($table);
 $it->QUERY_TABLE($table);
 #$it->DELIMITER('|');
 $it->ROWCOUNT( 10 );
-$it->OPTIONS( ["NAME LIKE 'RS%'"] );
+$it->OPTIONS( ["NAME LIKE 'SAPL\%RFC\%'"] );
 
 $rfc->callrfc( $it );
 

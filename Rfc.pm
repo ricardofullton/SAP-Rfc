@@ -3,7 +3,7 @@ package SAP::Rfc;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '0.97';
+$VERSION = '0.99';
 
 use SAP::Iface;
 
@@ -27,6 +27,9 @@ use constant RFCTYPE_INT2  => 9;
 # Config for C compiler - the directories may need 
 #   altering - these directories follow the typical 
 #   installation path of the SAP RFCSDK under Linux
+use Inline 'Untaint';
+use Inline 'UNSAFE';
+BEGIN { unless ($> == 0) { require Inline; import Inline 'Untaint'; } }
 use Inline ( C=> Config =>
 #                DIRECTORY => '/tmp/_Inline/saprfc',
                 INC => '-I/usr/sap/rfcsdk/include',
@@ -38,7 +41,9 @@ use Inline ( C=> Config =>
 # Config for Inline::MakeMaker
 use Inline C=> 'DATA',
                 NAME => 'SAP::Rfc',
-                VERSION => '0.97';
+                VERSION => '0.99';
+
+Inline->init;
 
 
 # Globals
@@ -165,7 +170,7 @@ sub login_string {
   $self->{PASSWD} = uc( $self->{PASSWD} );
 
 # create the login string but only return valid parameters
-  map { $connect.= $_ . "=" . $self->{$_} . " " } keys %{$self};
+  map { $connect.= $_ . "=\"" . $self->{$_} . "\" " } keys %{$self};
 
   return $connect;
 }
@@ -231,13 +236,17 @@ sub discover{
   return  undef if $ifc->{'__RETURN_CODE__'} != 0;
 
   my $interface = new SAP::Iface(NAME => $iface);
+#  print STDERR "VESION: ".Dumper($info)."\n";
   for my $row ( @{ $ifc->{'PARAMS_P'} } ){
+#      print STDERR "PARAM ROW: $row \n";
       my ($type, $name, $tabname, $field, $datatype,
           $pos, $off, $intlen, $decs, $default, $text ) =
 # record structure changes from release 3.x to 4.x 
 	      unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
 		      "A A30 A30 A30 A A4 A6 A6 A6 A21 A79 A1" :
 		      "A A30 A10 A10 A A4 A6 A6 A6 A21 A79", $row );
+#      print STDERR "DATA TYPE: #$datatype# \n";
+#      print STDERR "FIELD: #$field# \n";
       $name =~ s/\s//g;
       $tabname =~ s/\s//g;
       $field =~ s/\s//g;
@@ -297,8 +306,15 @@ sub discover{
 	  #  Float
 	  $datatype = RFCTYPE_FLOAT;
 	  #$default = 0;
-      } elsif ( ($datatype eq " " or ! $datatype ) and $type ne "X"){
+#      } elsif ( ($datatype eq " " or ! $datatype ) and $type ne "X"){
+      } elsif ( 
+      # new style
+         ( $info->{'RFCSAPRL'} =~ /^6/ and $datatype eq "u" and $field eq "" and $type ne "X")
+      # old style
+      or ( $info->{'RFCSAPRL'} !~ /^6/ and ($datatype eq " " or ! $datatype ) and $type ne "X")
+              ){
 	  # do a structure object
+#	  print STDERR " $name creating a structure: name - $tabname - field - $field - $datatype - $type\n";
 	  $structure = structure( $self, $tabname );
 	  $datatype = RFCTYPE_BYTE;
       } else {
@@ -465,6 +481,8 @@ sub callrfc {
   die "SAP Connection Not Open for RFC call "
      if ! is_connected( $self );
 
+#  print STDERR "IFACE: ".Dumper($iface->iface );
+
   my $result = MyRfcCallReceive( $self->{HANDLE}, $iface->name, $iface->iface);
 
   if ($DEBUG){
@@ -472,7 +490,7 @@ sub callrfc {
       print "RFC CALL: ", $iface->name(), " RETURN IS: ".Dumper( $result )." \n";
   };
   
-  if ( $result->{'__RETURN_CODE__'} != 0 ){
+  if ( $result->{'__RETURN_CODE__'} ne "0" ){
       die "RFC call falied: ".$result->{'__RETURN_CODE__'};
   } else {
       map {
@@ -490,7 +508,7 @@ sub callrfc {
 # convert internal data types to externals
 sub intoext{
     my $parm = shift;
-    my $value = shift;
+    my $value = shift || "";
 
     if ( $parm->intype() == RFCTYPE_INT ){
 	return unpack("l", $value);
@@ -554,6 +572,9 @@ my $it = $rfc->discover("RFC_READ_TABLE");
 $it->QUERY_TABLE('TRDIR');
 $it->ROWCOUNT( 2000 );
 $it->OPTIONS( ["NAME LIKE 'RS%'"] );
+
+or pass a list of hash refs like so:
+$it->OPTIONS( [ { TEXT => "NAME LIKE 'RS%'" } ] );
 
 $rfc->callrfc( $it );
 
@@ -693,7 +714,7 @@ SV*  MyConnect(char* connectstring){
     new_env.errorhandler = rfc_error;
     RfcEnvironment( &new_env );
     
-    // fprintf(stderr, "CONNECT: %s\n", connectstring);
+    //fprintf(stderr, "CONNECT: %s\n", connectstring);
     handle = RfcOpenEx(connectstring,
 		       &error_info);
 

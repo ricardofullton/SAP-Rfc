@@ -30,7 +30,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '0.96';
+$VERSION = '0.99';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -473,7 +473,20 @@ sub new {
 sub rows {
 
   my $self = shift;
-  $self->{VALUE} = shift if @_;
+  if (@_){
+    $self->{'VALUE'} = shift;
+    my @rows = ();
+    my $str = $self->structure();
+    foreach my $row ( @{$self->{'VALUE'}} ){
+      if (ref($row) eq 'HASH'){
+        map { $str->$_($row->{$_}) } keys %{$row};
+	$row = $str->value;
+	$str->value("");
+      }
+      push(@rows, $row);
+    }
+    $self->{'VALUE'} = \@rows;
+  }
   return  map{ pack("A".$self->leng(),$_) } (@{$self->{VALUE}});
 
 }
@@ -521,7 +534,16 @@ sub structure {
 sub addRow {
 
   my $self = shift;
-  push(@{$self->{VALUE}}, @_) if @_;
+  if (@_){
+    my $row = shift;
+    my $str = $self->structure();
+    if (ref($row) eq 'HASH'){
+      map { $str->$_($row->{$_}) } keys %{$row};
+      $row = $str->value;
+      $str->value("");
+    }
+    push(@{$self->{VALUE}}, $row);
+  }
 
 }
 
@@ -615,6 +637,11 @@ new
 $tab->rows()
   @r = $tab1->rows( [ row1, row2, row3 .... ] );
   optionally set and Give the current rows of a table.
+
+  or:
+  $tab1->rows( [ { TEXT => "NAME LIKE 'SAPL\%RFC\%'", .... } ] );
+  pass in a list of hash refs where each hash ref is the key value pairs of the 
+  table structures fields ( as per the DDIC ).
 
 $tab->addRow()
   Add a row to the table contents.
@@ -774,14 +801,25 @@ sub intype {
 sub value {
 
   my $self = shift;
-  $self->{VALUE} = shift if @_;
+#  print STDERR "setting value: ".$self->name()." to ", @_,"\n";
+  if (@_){
+    $self->{'VALUE'} = shift;
+    if (ref($self->{'VALUE'}) eq 'HASH'){
+      my $str = $self->structure();
+      map { $str->$_($self->{'VALUE'}->{$_}) } keys %{$self->{'VALUE'}};
+      $self->{'VALUE'} = $str->value;
+      $str->value("");
+    }
+    $self->leng(length($self->{'VALUE'}));
+  }
+#  print STDERR " value for: ".$self->name()." is ", $self->{'VALUE'},"\n";
   if (my $s = $self->structure ){
-    $s->value( $self->{VALUE} ); 
+    $s->value( $self->{'VALUE'} ); 
     my $flds = {};
     map {  $flds->{$_} = $s->$_() } ( $s->fields );
     return $flds;
   } else {
-    return $self->{VALUE};
+    return $self->{'VALUE'};
   }
 
 }
@@ -793,6 +831,8 @@ sub intvalue {
   my $self = shift;
   $self->{VALUE} = shift if @_;
 
+
+#  print STDERR "PARM: ".$self->name() ." type ".$self->intype()." is: ".$self->{'VALUE'}."\n";
 # Sort out theinternal format
   if ( $self->{VALUE}){
       if ( $self->intype() == RFCTYPE_BCD){
@@ -808,6 +848,7 @@ sub intvalue {
       # get the last byte of the integer
 	  return (unpack("A A A A", int($self->{VALUE})))[-1];
       } else {
+#          print STDERR " length is: ".$self->leng()." value is: ".$self->{'VALUE'}."\n";
 	  return pack("A".$self->leng(),$self->{VALUE});
       };
   } else {
@@ -914,6 +955,9 @@ new
 $p->value()
   $v = $imp1->value( [ val ] );
   optionally set and Give the current value.
+
+  or - pass in a hash ref where the hash ref contains  key/value pairs
+  for the fields in the complex parameters structure ( as per the DDIC ).
 
 $p->type()
   $t = $imp1->type( [ type ] );
@@ -1194,9 +1238,10 @@ sub _pack_structure {
 	# NUMC
 #          $fld->{VALUE} = int($fld->{VALUE});
 # what if it is num char ?
+          $fld->{VALUE} = "0" unless exists $fld->{VALUE};
 	  if ( $fld->{VALUE} == 0 || $fld->{VALUE} =~ /^[0-9]+$/ ){
 	    $fld->{VALUE} = 
-	      sprintf("%0".$fld->{LENGTH}."d", int($fld->{VALUE}));
+	      sprintf("%0".$fld->{LEN}."d", int($fld->{VALUE}));
 	  };
 #          $fld->{VALUE} = int($fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_DATE ){

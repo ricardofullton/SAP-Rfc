@@ -87,7 +87,18 @@ Tidied up the documentation a bit as it is way out of date.
 
 Fixed a problem with sub nextRow in SAP::Iface, which was due to earlier changes in SAP::Struc.
 
-0.96 Fri Feb 22 09:19:00 GMT 2002 
+0.97 Fri Feb 22 09:19:00 GMT 2002 
 
 Fixed a problem with the installer - the version nos were wrong
 Added in the SECUDE login parameters
+
+0.98 Fri Tue 26 09:00:00 GMT 2002 
+
+Quote login paramters so that parameters with spaces in them can be passed.
+
+0.99 Fri 19.04.2002
+As per a bug fix from Jan Hebler - change the test for the return code for the Inline portion of the rfc call to a string compare - gets rid of yucky warning messages.
+Fix problesm with running Inline based programs under Apache/mod_perl
+Add in the ability to pass in table values ( rows ) as an array ref of hash refs - the hash refs contain a hash of the table structure key/value pairs.  The same has been done for parameters that have structures.
+Note: the whole record/complex parameter values can still be passed in as strings.
+

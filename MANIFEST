@@ -1,0 +1,14 @@
+README
+Artistic
+Changes
+MANIFEST
+Makefile.PL
+Rfc.pm
+SOAP.pm
+Iface.pm
+Config.pm
+t/test.t
+examples/tables.pl
+examples/reports.pl
+examples/makesoap.pl
+examples/reports.pl

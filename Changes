@@ -1,0 +1,84 @@
+Revision history for Perl extension SAPRfc.
+
+0.01  Sat May 29 17:47:22 1999
+	- original version; created by h2xs 1.19
+
+0.02  Fri Jul 16 19:27:22 1999
+   Documentation for modules added
+   Examples added to SAPRfc POD
+   Numerous bugs fixed in interface discover
+   Structure discovery added
+   Exceptions added to interface definition
+
+0.03  Mon Jul 19 05:30:00 1999
+   Change SAPInterface Exports(), Imports(), Tables methods to return 
+     a list of objects insteadof names
+   Change SAPRfc connect() method to accept login parameters
+   Fix bug in SAPStructure for updating structure with NULL records
+   Fix bug with interface discovery for default values - SPACE word
+     means put space in field( doh!), literals are single quoted eg.
+     'X'.
+
+0.04  Wed Jul 21 17:00:00 1999
+  Completely renamed all modules to SAP::xxx standard - sorry guys
+    but it is better to bite this one now than later!
+  Fixed bug in structure discovery for interface discovery - it was not 
+    always picking that a table had a structure.
+  Fixed nasty bug in returning import parameter values.
+  Created sample IDOC posting program for Purchase Orders
+
+0.05  Sat Sep 04 10:00:00 1999
+  Thanks to Frederic Huet who highlighted some bugs:
+  Fixed - bad C code for import parameters
+  Fixed discovery problem for Date and Time data types - these get a basic
+    default value of zeros.
+
+0.10  Sat Sep 11 22:00:00 1999
+  Changed the structure routine to not pack and unpack the "whole" value
+  all the time - now it keeps track of when component or overall value 
+  changes in order to decide when to pack/unpack.
+
+0.11  Sat Oct 04 19:00:00 1999
+  Fixed a bug in date checking for Export parameter - did not allow 10 for
+  month.
+  Changed Structure.pm to default 0's for date and time data types if they are
+  null.
+  Cleaned up Rfc.xs to remove unused functions, and declarations.
+
+0.12 Sometime on Monday Oct 25th 1999
+  Johan Schon pointed out a problem with the t/test.t script $^W = 0 not undef.
+  Fixed a problem with the discovery routines where the structures for the standard RFCs
+    change between releases 3.x and 4.x+ ( RFC_GET* ).
+  Used #defines to remove declarations from Rfc.xs that have caused problems with 
+    compilation under Win32 - Fred.
+ 
+0.15 Tuesday 16th  Nov 1999
+  DJ sent in problems with warns coming up when using -W and use strict - a lot of these
+    warnings have been fixed, but some may still exist?
+  Major new release with the xml based rfc message passing ( perl <-> xs ), which also
+    includes dynamic memory allocation for working storage - the method xmlrfc in Rfc.pm
+    replaces callrfc if you choose to use this functionality.  callrfc remains untouched.
+  dumpdef() Methods added to Interface.pm, Table.pm, Export.pm, and Import.pm to allow
+    easy printing out of the object definitions - this is essentially a debugging tool.
+ 
+ 
+0.16 Monday 22th  Nov 1999
+  Sorry! - an annoying change has been made so that a $rfc->callrfc or a $rfc->xmlrfc now requires an arguement of an SAP::Interface object instead of the name of the interface.  This change is necessary to allow more than one instance of the same RFC call to be made within a threaded perl application.  This will eventually make the $rfc->addInterface, and $rfc->deleteInterface methods redundant, as the Interface object becomes divorced from the connectin object ( SAP::Rfc ).
+  Introduced a new method in SAP::Interface to generate a code stub for a given interface - the method is $iface->Gencode($file);  It take a target source code file as an arguement.  The file is filled with a single method that returns a complete SAP::Interface object for the specified RFC Interface.  This is a time saver for complex interface definitions where you can't afford to have the overhead of using the $rfc->discover routine.
+  The same method has been added to the SAP::Structure object so that structure definition code stubs can be automatically generated.  This is particularly useful for IDOC related programs that often will use many different and complex structures.  The examples program idoc.pl in the examples directory of the distribution generates a complete program stub for a given IDOC ( well worth a look ! ).
+
+0.91 Tuesday 20th March, 2001
+
+Completely rewritten the interface to use Inline::C
+
+
+0.93 Tuesday 29th May, 2001
+
+Added in a module SAP::SOAP that uses SOAP::Lite to support SOAP requests
+Fixed INT1 and INT2 support in Structures
+
+
+0.94 Wednesday 30th May, 2001
+
+Fixed a sort order problem in SAP::Struc using cmp instead of <=> - Thank you Ivo Clarysse.
+Tidied up the documentation a bit as it is way out of date.

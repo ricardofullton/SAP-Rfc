@@ -1,0 +1,99 @@
+
+			   SAP::Rfc XS Package
+
+
+    Copyright (c) 1999 Piers Harding.
+    All rights reserved.
+    This program is free software; you can redistribute it and/or modify
+    it under the terms of either:
+
+	a) the GNU General Public License as published by the Free
+	Software Foundation; either version 1, or (at your option) any
+	later version, or
+
+	b) the "Artistic License" which comes with this Kit.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See either
+    the GNU General Public License or the Artistic License for more details.
+
+    You should have received a copy of the Artistic License with this
+    Kit, in the file named "Artistic".  If not, I'll be glad to provide one.
+
+    You should also have received a copy of the GNU General Public License
+    along with this program; if not, write to the Free Software Foundation,
+    Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307, USA.
+
+    For those of you that choose to use the GNU General Public License,
+    my interpretation of the GNU General Public License is that no Perl
+    script falls under the terms of the GPL unless you explicitly put
+    said script under the terms of the GPL yourself.  Furthermore, any
+    object code linked with perl does not automatically fall under the
+    terms of the GPL, provided such object code only adds definitions
+    of subroutines and variables, and does not otherwise impair the
+    resulting interpreter from executing any standard Perl script.  I
+    consider linking in C subroutines in this manner to be the moral
+    equivalent of defining subroutines in the Perl language itself.  You
+    may sell such an object file as proprietary provided that you provide
+    or offer to provide the Perl source, as specified by the GNU General
+    Public License.  (This is merely an alternate way of specifying input
+    to the program.)  You may also sell a binary produced by the dumping of
+    a running Perl script that belongs to you, provided that you provide or
+    offer to provide the Perl source as specified by the GPL.  (The
+    fact that a Perl interpreter and your code are in the same binary file
+    is, in this case, a form of mere aggregation.)  This is my interpretation
+    of the GPL.  If you still have concerns or difficulties understanding
+    my intent, feel free to contact me.  Of course, the Artistic License
+    spells all this out for your protection, so you may prefer to use that.
+
+
+    One last thing - The SAP RFCSDK is a prerequisite for this perl package to work.  The RFCSDK is proprietrary software owned by SAP AG.  For this reason I will not supply ANY component part of the RFCSDK with this perl package, and further more you must obtain it through the normal channels with SAP AG - ie. you must have a licensed SAP R/3 installation at your disposal.
+
+
+
+After all the legal stuff -  Hello!
+
+Welcome to the SAP::Rfc perl package.  This package is intended to facilitate RFC calls to an SAP R/3 system of release 3.1x and above.  It may work for earlier versions but it hasn't been tested.
+The fundamental purpose of the production of this package, is to provide a clean object oriented interface to RFC calls from within perl.  This will hopefully have a number of effects:
+(1) make it really easy to do RFC calls to SAP from perl in an object oriented fashion (Doh!)
+(2) promote perl as the interface/scripting/glue language of choice for interaction with SAP R/3.
+(3) make the combination of Linux, Apache, and perl the killer app for internet connectivity with SAP.
+(4) Establish a small fun open source project that people are more than welcome to contribute to, if they so wish.
+
+As of version 0.91 the SAP::Rfc package has been completely rewritten to use Inline::C ( courtesy of Brian Ingerson of ActiveState ) - this has immensely simplified the implementation specifics, and has also taken the package a long way to being thread safe ( ie. there is nolonger any global storage defined within the C extension ).
+
+So your prerequisites are: 
+
+   Inline::C
+
+
+
+With this in mind - this package has been developed under Linux, so the installation is therefore focused on this.  This does not mean that it will not work on other UNIX like flavours - to the contrary it probably will, it just hasn't been tested.  The package has been compiled and run under Win32 - special attention needs to be paid to the options found in the Makefile.PL file.
+
+After the fundamental RFC interface has been developed, the intention is then to extend this to add interface discovery, and a BAPI abstraction layer - but this is down the track.
+
+SAP have kindly provided the RFCSDK for Linux on the OSS ftp service.  This can be retrieved from sapserv3, currently in the "unsupported directory" - this should change before the end of 1999 to being fully supported. See OSS note 53459 for details.
+This must be installed before you continue.  I use Redhat 6.1 or Slackware 7.0 - other distributions will probably work, but take heed of the instructions provided with the rfcsdk rpm files.
+Once you have the rfcsdk installed carry on!
+
+
+Ensure that you have installed the rfcsdk in /usr/sap/rfcsdk ( include|lib ) otherwise Inline::C will not know where to find the necessary header files / libraries - this is a hard coded directive at the top of the Rfc.pm file.
+
+
+After you have unpacked your kit, you should have all the files listed
+in MANIFEST.
+
+Installation
+
+In brief, the following should work on most systems:
+        perl Makefile.PL
+	make
+	make test  << provide all your host routing information.
+	make install
+
+
+
+
+Cheers - Piers Harding - R/2 R/3 BASIS, IFACE, JAPH, whatever ...
+

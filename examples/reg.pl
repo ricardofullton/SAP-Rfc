@@ -32,27 +32,28 @@ print "EXCEPTION: ".$SAP::Rfc::EXCEPTION_ONLY ."\n";
 my $rfc = new SAP::Rfc(
               TPNAME   => 'wibble.rfcexec',
               #GWHOST   => '172.22.50.1',
+              #GWHOST   => '172.22.50.76',
               GWHOST   => 'seahorse.local.net',
               GWSERV   => '3300',
               TRACE    => '1' );
 
-#my $iface = new SAP::Iface(NAME => "RFC_DEMO", HANDLER => \&do_demo);
-#$iface->addParm( TYPE => $iface->RFCEXPORT,
-#                 INTYPE => $iface->RFCTYPE_CHAR,
-#                 NAME => "EXP1",
-#                 LEN => 75);
-#$iface->addParm( TYPE => $iface->RFCEXPORT,
-#                 INTYPE => $iface->RFCTYPE_CHAR,
-#                 NAME => "EXP2",
-#                 LEN => 3);
-#$iface->addParm( TYPE => $iface->RFCIMPORT,
-#                 INTYPE => $iface->RFCTYPE_CHAR,
-#                 NAME => "IMP1",
-#                 LEN => 1);
-#$iface->addTab( NAME => "TAB1",
-#                LEN => 200);
-#
-#$rfc->iface($iface);
+my $iface = new SAP::Iface(NAME => "RFC_DEMO", HANDLER => \&do_demo);
+$iface->addParm( TYPE => $iface->RFCEXPORT,
+                 INTYPE => $iface->RFCTYPE_CHAR,
+                 NAME => "EXP1",
+                 LEN => 75);
+$iface->addParm( TYPE => $iface->RFCEXPORT,
+                 INTYPE => $iface->RFCTYPE_CHAR,
+                 NAME => "EXP2",
+                 LEN => 3);
+$iface->addParm( TYPE => $iface->RFCIMPORT,
+                 INTYPE => $iface->RFCTYPE_CHAR,
+                 NAME => "IMP1",
+                 LEN => 1);
+$iface->addTab( NAME => "TAB1",
+                LEN => 200);
+
+$rfc->iface($iface);
 
 my $iface = new SAP::Iface(NAME => "RFC_REMOTE_PIPE", HANDLER => \&do_remote_pipe);
 $iface->addParm( TYPE => $iface->RFCIMPORT,
@@ -71,7 +72,20 @@ $rfc->iface($iface);
 
 print " START: ".scalar localtime() ."\n";
 
-$rfc->accept();
+$rfc->accept(\&do_something, 5);
+
+warn "ERR: ".$rfc->error ."\n";
+
+sub do_something {
+
+  my $thing = shift;
+
+  warn "Running do_something ...\n";
+  warn "Got: $thing \n";
+
+  #return $iface;
+
+}
 
 
 sub do_demo {

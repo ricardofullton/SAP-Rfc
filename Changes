@@ -199,3 +199,12 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.27 Fri Apr 23 16:38:06 NZST 2004
  - remove bad double-slash comments from C code, and extraneous
  fprintf()s
+
+1.28 Fri May 14 12:39:38 NZST 2004
+ - added in additional error checking for Gateway availability - $rfc->error now set
+   if not avail.
+ - added in an event loop synchronisation callback for the accept().
+   accept() now takes parameters $callback, and $wait.
+ - fixed problem with SM59 RFC documentation that caused a memory leak.
+ - built first version of tRFC.  This allows callbacks for handling the 
+   transaction control CHECK, COMMIT, CONFIRM, and ROLLBACK

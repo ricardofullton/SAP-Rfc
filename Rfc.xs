@@ -11,6 +11,8 @@
 
 #define BUF_SIZE 8192
 
+#define RFC_WAIT_TIME 10
+
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -32,6 +34,19 @@
 #include "windows.h"
 #endif
 
+/* name of installed function for global callback in tRFC */
+char name_user_global_server[31] = "%%USER_GLOBAL_SERVER";
+
+/* global hash of interfaces */
+HV* p_iface_hash;
+
+/* global pointers to saprfc object */
+SV* global_saprfc;
+HV* p_saprfc;
+
+/* global reference to main loop callback for registered RFC */
+SV* sv_callback;
+
 
 /*
  * local prototypes & declarations
@@ -40,10 +55,15 @@
 static RFC_RC DLL_CALL_BACK_FUNCTION handle_request( RFC_HANDLE handle, SV* sv_iface );
 static RFC_RC DLL_CALL_BACK_FUNCTION do_docu( RFC_HANDLE handle );
 static SV* call_handler(SV* sv_callback_handler, SV* sv_iface, SV* sv_data);
+RFC_RC loop_callback(SV* sv_callback_handler, SV* sv_self);
 void get_attributes(RFC_HANDLE rfc_handle, HV* hv_sysinfo);
-
+static int  DLL_CALL_BACK_FUNCTION  TID_check(RFC_TID tid);
+static void DLL_CALL_BACK_FUNCTION  TID_commit(RFC_TID tid);
+static void DLL_CALL_BACK_FUNCTION  TID_confirm(RFC_TID tid);
+static void DLL_CALL_BACK_FUNCTION  TID_rollback(RFC_TID tid);
+static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE rfc_handle);
+static char *user_global_server_docu(void);
 static RFC_RC install_docu    ( RFC_HANDLE handle );
-
 static char * do_docu_docu( void );
 
 
@@ -440,21 +460,316 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 }
 
 
+RFC_RC loop_callback(SV* sv_callback_handler, SV* sv_self)
+{
+
+    int result;
+    SV* sv_rvalue;
+    dSP;
+
+    /* if there is no handler then get out of here */
+    if (! SvTRUE(sv_callback_handler))
+      return RFC_OK;
+
+    /* initialising the argument stack */
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+
+    /* push the pkt onto the stack */
+    XPUSHs( sv_self );
+
+    /* stash the stack point */
+    PUTBACK;
+
+    result = perl_call_sv(sv_callback_handler, G_EVAL | G_SCALAR );
+
+    /* disassemble the results off the argument stack */
+    if(SvTRUE(ERRSV))
+        fprintf(stderr, "RFC callback - perl call errored: %s\n", SvPV(ERRSV,PL_na));
+    SPAGAIN;
+
+    /* was this handled or passed? */
+    /* fprintf(stderr, "results are: %d \n", result); */
+    if (result > 0){
+      sv_rvalue = newSVsv(POPs);
+    } else {
+      sv_rvalue = newSViv(0);
+    }
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+
+    if (SvTRUE(sv_rvalue)){
+      return RFC_OK;
+    } else {
+      return RFC_SYS_EXCEPTION;
+    }
+
+}
+
+
+
+/*--------------------------------------------------------------------*/
+/* TID_CHECK-Function for transactional RFC                           */
+/*--------------------------------------------------------------------*/
+static int DLL_CALL_BACK_FUNCTION TID_check(RFC_TID tid)
+{
+    /* fprintf(stderr, "\n\nStart Function TID_CHECK      TID = %s\n", tid); */
+
+    int result;
+    SV* sv_callback_handler;
+    SV* sv_rvalue;
+    dSP;
+
+    sv_callback_handler = (SV*) *hv_fetch(p_saprfc, (char *) "TRFC_CHECK", 10, FALSE); 
+    /* if there is no handler then get out of here */
+    if (! SvTRUE(sv_callback_handler))
+      return 0;
+
+    /* initialising the argument stack */
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+
+    /* push the tid onto the stack */
+    XPUSHs( newSVpvf("%s",tid) );
+
+    /* stash the stack point */
+    PUTBACK;
+
+    result = perl_call_sv(sv_callback_handler, G_EVAL | G_SCALAR );
+
+    /* disassemble the results off the argument stack */
+    if(SvTRUE(ERRSV))
+        fprintf(stderr, "RFC TID_check callback - perl call errored: %s\n", SvPV(ERRSV,PL_na));
+    SPAGAIN;
+
+    /* was this handled or passed? */
+    /* fprintf(stderr, "results are: %d \n", result); */
+    if (result > 0){
+      sv_rvalue = newSVsv(POPs);
+    } else {
+      sv_rvalue = newSViv(0);
+    }
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+
+    if (SvTRUE(sv_rvalue)){
+      return 1;
+    } else {
+      return 0;
+    }
+
+}
+
+
+/*--------------------------------------------------------------------*/
+/* TID_COMMIT-Function for transactional RFC                          */
+/*--------------------------------------------------------------------*/
+static void DLL_CALL_BACK_FUNCTION TID_commit(RFC_TID tid)
+{
+    /* fprintf(stderr, "\n\nStart Function TID_COMMIT     TID = %s\n", tid); */
+
+    int result;
+    SV* sv_callback_handler;
+    dSP;
+
+    sv_callback_handler = (SV*) *hv_fetch(p_saprfc, (char *) "TRFC_COMMIT", 11, FALSE); 
+    /* if there is no handler then get out of here */
+    if (! SvTRUE(sv_callback_handler))
+      return;
+
+    /* initialising the argument stack */
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+
+    /* push the tid onto the stack */
+    XPUSHs( newSVpvf("%s",tid) );
+
+    /* stash the stack point */
+    PUTBACK;
+
+    result = perl_call_sv(sv_callback_handler, G_EVAL | G_DISCARD );
+
+    /* disassemble the results off the argument stack */
+    if(SvTRUE(ERRSV))
+        fprintf(stderr, "RFC TID_commit callback - perl call errored: %s\n", SvPV(ERRSV,PL_na));
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+
+    return;
+}
+
+
+/*--------------------------------------------------------------------*/
+/* CONFIRM-Function for transactional RFC                             */
+/*--------------------------------------------------------------------*/
+static void DLL_CALL_BACK_FUNCTION TID_confirm(RFC_TID tid)
+{
+    /* fprintf(stderr, "\n\nStart Function TID_CONFIRM    TID = %s\n", tid); */
+
+    int result;
+    SV* sv_callback_handler;
+    dSP;
+
+    sv_callback_handler = (SV*) *hv_fetch(p_saprfc, (char *) "TRFC_CONFIRM", 12, FALSE); 
+    /* if there is no handler then get out of here */
+    if (! SvTRUE(sv_callback_handler))
+      return;
+
+    /* initialising the argument stack */
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+
+    /* push the tid onto the stack */
+    XPUSHs( newSVpvf("%s",tid) );
+
+    /* stash the stack point */
+    PUTBACK;
+
+    result = perl_call_sv(sv_callback_handler, G_EVAL | G_DISCARD );
+
+    /* disassemble the results off the argument stack */
+    if(SvTRUE(ERRSV))
+        fprintf(stderr, "RFC TID_confirm callback - perl call errored: %s\n", SvPV(ERRSV,PL_na));
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+
+    return;
+}
+
+
+/*--------------------------------------------------------------------*/
+/* TID_ROLLBACK-Function for transactional RFC                        */
+/*--------------------------------------------------------------------*/
+static void DLL_CALL_BACK_FUNCTION TID_rollback(RFC_TID tid)
+{
+    /* fprintf(stderr, "\n\nStart Function TID_ROLLBACK   TID = %s\n", tid); */
+
+    int result;
+    SV* sv_callback_handler;
+    dSP;
+
+    sv_callback_handler = (SV*) *hv_fetch(p_saprfc, (char *) "TRFC_ROLLBACK", 13, FALSE); 
+    /* if there is no handler then get out of here */
+    if (! SvTRUE(sv_callback_handler))
+      return;
+
+    /* initialising the argument stack */
+    ENTER;
+    SAVETMPS;
+    PUSHMARK(SP);
+
+    /* push the tid onto the stack */
+    XPUSHs( newSVpvf("%s",tid) );
+
+    /* stash the stack point */
+    PUTBACK;
+
+    result = perl_call_sv(sv_callback_handler, G_EVAL | G_DISCARD );
+
+    /* disassemble the results off the argument stack */
+    if(SvTRUE(ERRSV))
+        fprintf(stderr, "RFC TID_rollback callback - perl call errored: %s\n", SvPV(ERRSV,PL_na));
+    SPAGAIN;
+    PUTBACK;
+    FREETMPS;
+    LEAVE;
+
+    return;
+}
+
+static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE handle)
+{
+
+  RFC_RC rc;
+  RFC_FUNCTIONNAME  funcname;
+  SV* sv_iface;
+
+  fprintf(stderr, "\n\nStart Function %s\n", name_user_global_server);
+
+  fprintf(stderr, "\n<==  RfcGetName               rfc_rc = ");
+
+  rc = RfcGetName(handle, funcname);
+
+  fprintf(stderr, "%d\n", rc);
+
+  if (rc == RFC_OK)
+  {
+      fprintf(stderr, "   Function Name: '%s'\n", funcname);
+  }
+
+  if (rc != RFC_OK){
+     /* fprintf(stderr, "RFC connection failure code: %d \n", rc); */
+     /* hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("RFC connection failure code: %d", rc), 0); */
+       return rc;
+  }
+
+  /* check at this point for registered functions */
+  if ( ! hv_exists(p_iface_hash, funcname, strlen(funcname)) ){
+       fprintf(stderr, "the MISSING Function Name is: %s\n", funcname);
+       RfcRaise( handle, "FUNCTION_MISSING" );
+       /* do event callback to intertwine other events */
+       /* rc = loop_callback(sv_callback, sv_saprfc); */
+       /* XXX   */
+       return RFC_NOT_FOUND;
+  }
+
+  /* pass in the interface to be handled */
+  sv_iface = *hv_fetch(p_iface_hash, funcname, strlen(funcname), FALSE);
+
+  handle_request(handle, sv_iface);
+
+  rc = loop_callback(sv_callback, global_saprfc);
+
+  return rc;
+}
+
+#undef  NL
+#define NL "\n"
+
+static char *user_global_server_docu(void)
+{
+  static char docu[] =
+  "The RFC library will call this function if any unknown"            NL
+  "RFC function should be executed in this RFC server program."       NL
+    ;
+  return docu;
+}
+
 
 SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
 {
    /* initialized data */
    static RFC_ENV    env;
+   RFC_ERROR_INFO_EX  error_info;
    RFC_HANDLE handle;
    RFC_RC     rc;
    RFC_FUNCTIONNAME funcname;
-   HV* p_hash;
-   HV* p_saprfc;
    SV* sv_iface;
+   SV* sv_wait;
+   SV* sv_is_trfc;
+   RFC_INT wtime = 0; 
+   RFC_INT ntotal,
+           ninit,
+           nready,
+           nbusy;
+   char   gwserv[8];
 
    /*
     * install error handler
     */
+   global_saprfc = sv_saprfc;
+   p_saprfc = (HV*)SvRV( sv_saprfc );
+
    env.errorhandler = rfc_error;
    RfcEnvironment( &env );
 
@@ -464,22 +779,70 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
     * (command line argv must be passed to RfcAccept)
     */
    /* fprintf(stderr, "The connection string is: %s\n", SvPV(sv_conn, SvCUR(sv_conn))); */
+
+   /* get the tRFC indicator  */
+   sv_is_trfc = (SV*) *hv_fetch(p_saprfc, (char *) "TRFC", 4, FALSE); 
+
    handle = RfcAcceptExt( SvPV(sv_conn, SvCUR(sv_conn)) );
+
+   /* fprintf(stderr, "what is my handle: %d\n", handle); */
+   sprintf(gwserv, "%d", SvIV((SV*) *hv_fetch(p_saprfc, (char *) "GWSERV", 6, FALSE))); 
+   rc = RfcCheckRegisterServer( SvPV((SV*) *hv_fetch(p_saprfc, (char *) "TPNAME", 6, FALSE), PL_na),
+                                SvPV((SV*) *hv_fetch(p_saprfc, (char *) "GWHOST", 6, FALSE), PL_na), 
+ 			        gwserv, 
+ 			        &ntotal, &ninit, &nready, &nbusy, &error_info);
+
+   if (rc != RFC_OK)
+   {
+     /*
+     fprintf(stderr, "\nGroup       Error group %d\n", error_info.group);
+     fprintf(stderr, "Key         %s\n", error_info.key);
+     fprintf(stderr, "Message     %s\n\n", error_info.message);
+     */
+     hv_store(p_saprfc, (char *) "ERROR", 5, 
+        newSVpvf("\nGroup       Error group %d\nKey         %s\nMessage     %s\n\n", 
+	           error_info.group, error_info.key, error_info.message), 0);
+     return newSViv(-1);
+   }
+
+   /* obscure error when SAP is starting up but still get RFC_OK above */
+   if (ntotal == 0)
+   {
+     hv_store(p_saprfc, (char *) "ERROR", 5, 
+        newSVpvf("\nGroup       Error group 102\nKey         RFC_ERROR_COMMUNICATION\nMessage     Error connecting to the gateway - no registered servers found\n\n"), 0);
+     return newSViv(-1);
+   }
+   /*
+   fprintf(stderr, "\nNo. registered servers               :  %d", ntotal);
+   fprintf(stderr, "\nNo. registered servers in INIT-state :  %d", ninit);
+   fprintf(stderr, "\nNo. registered servers in READY-state:  %d", nready);
+   fprintf(stderr, "\nNo. registered servers in BUSY-state :  %d", nbusy);
+   */
+
+
+   if (SvTRUE(sv_is_trfc)) {
+   /* Install transaction control   */
+     RfcInstallTransactionControl((RFC_ON_CHECK_TID)   TID_check,
+                                  (RFC_ON_COMMIT)      TID_commit,
+                                  (RFC_ON_ROLLBACK)    TID_rollback,
+                                  (RFC_ON_CONFIRM_TID) TID_confirm);
+   }
 
    /*
     * static function to install offered function modules - RFC_DOCU
     */
+   sv_store_docu = sv_docu;
+
    rc = install_docu(handle);
+
    if( rc != RFC_OK )
    {
-     RfcAbort( handle, "Initialization error" );
-     p_saprfc = (HV*)SvRV( sv_saprfc );
+     RfcAbort( handle, "Initialisation error" );
      hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("Initialisation error in the gateway"), 0);
      return newSViv(-1);
    }
 
-   sv_store_docu = sv_docu;
-   p_hash = (HV*)SvRV( sv_ifaces );
+   p_iface_hash = (HV*)SvRV( sv_ifaces );
 
 #ifdef SAPonNT
    /* if one uses rfcexec as a bootstrap to start the
@@ -499,37 +862,88 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
 #endif
 
    /*
+    *  Setup the wait value
+    *
+    */
+    sv_callback = *hv_fetch(p_saprfc, (char *) "CALLBACK", 8, FALSE);
+    sv_wait = *hv_fetch(p_saprfc, (char *) "WAIT", 4, FALSE);
+    if (SvTRUE(sv_wait))
+       wtime = SvIV(sv_wait);
+    else
+       wtime = RFC_WAIT_TIME;
+   
+
+    /* global handler for tRFC  */
+    if (SvTRUE(sv_is_trfc)) {
+        rc = RfcInstallFunction(name_user_global_server,
+                             (RFC_ONCALL) user_global_server,
+	                      user_global_server_docu());
+       if( rc != RFC_OK )
+       {
+           fprintf(stderr, "\nERROR: Install %s     rfc_rc = %d",
+	                   name_user_global_server, rc);
+           RfcAbort( handle, "Cant install global tRFC handler" );
+           return newSViv(-1);
+       }
+    }
+
+   
+    /* fprintf(stderr, "The Wait time is: %d \n", wtime); */
+
+   /*
     * enter main loop
     */
    do
    {
-     /*rc = RfcDispatch( handle ); */
-     /* fprintf(stderr, "going to wait ...\n"); */
+     /* fprintf(stderr, "going to wait ...\n");  */
+     rc = RfcWaitForRequest(handle, wtime);
+     /* fprintf(stderr, "done the wait: %d \n", rc);  */
 
-     rc = RfcGetName(handle, funcname);
+     /* needs to get an RFC_OK or RFC_RETRY */
+     if (rc == RFC_RETRY){
+       /*  do event loop callback here for interloop breakout */
+       /* fprintf(stderr, "got into the retry...\n"); */
+       rc = loop_callback(sv_callback, sv_saprfc);
+       continue;
+     }
+
+     /* short circuit here for tRFC  */
+     if (SvTRUE(sv_is_trfc)) {
+         rc = RfcDispatch(handle);
+         /* fprintf(stderr, "done the dispatch: %d \n", rc);  */
+         continue;
+     }
+
+     /* this will block until a straight RFC call is made */
+     if (rc == RFC_OK)
+       rc = RfcGetName(handle, funcname);
 
      if (rc != RFC_OK){
        /* fprintf(stderr, "RFC connection failure code: %d \n", rc); */
-       p_saprfc = (HV*)SvRV( sv_saprfc );
        hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("RFC connection failure code: %d", rc), 0);
        continue;
      }
 
      /* check at this point for registered functions */
-     if ( ! hv_exists(p_hash, funcname, strlen(funcname)) ){
+     if ( ! hv_exists(p_iface_hash, funcname, strlen(funcname)) ){
        fprintf(stderr, "the MISSING Function Name is: %s\n", funcname);
        RfcRaise( handle, "FUNCTION_MISSING" );
+       /* do event callback to intertwine other events */
+       rc = loop_callback(sv_callback, sv_saprfc);
        continue;
      }
 
      /* pass in the interface to be handled */
-     sv_iface = *hv_fetch(p_hash, funcname, strlen(funcname), FALSE);
+     sv_iface = *hv_fetch(p_iface_hash, funcname, strlen(funcname), FALSE);
 
      handle_request(handle, sv_iface);
 
      /* fprintf(stderr, "round the loop ...\n"); */
 
-   } while( rc == RFC_OK );
+     /* do event callback to intertwine other events */
+     rc = loop_callback(sv_callback, sv_saprfc);
+
+   } while( rc == RFC_OK || rc == RFC_RETRY );
 
    /*
     * connection was closed by the client :
@@ -546,6 +960,7 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
 
    return newSViv(rc);
 } /* main */
+
 
 
 static RFC_RC install_docu( RFC_HANDLE handle )
@@ -986,28 +1401,57 @@ static RFC_RC DLL_CALL_BACK_FUNCTION do_docu(  RFC_HANDLE handle )
     int i;
 
     parameter[0].name = NULL;
+    parameter[0].nlen = 0;
+    parameter[0].leng = 0;
+    parameter[0].addr = NULL;
+    parameter[0].type = 0;
 
-    table[0].name = "DOCU";
+    table[0].name =  malloc( 5 );
+    memset(table[0].name, 0, 5);
+    Copy("DOCU", table[0].name, 4, char);
     table[0].nlen = 4;
     table[0].type = RFCTYPE_CHAR;
     table[0].leng = 80;
     table[0].itmode = RFC_ITMODE_BYREFERENCE;
 
     table[1].name = NULL;
+    table[1].ithandle = NULL;
+    table[1].nlen = 0;
+    table[1].leng = 0;
+    table[1].type = 0;
 
     rc = RfcGetData( handle, parameter, table );
     if( rc != RFC_OK ) return rc;
+
+    parameter[0].name = NULL;
+    parameter[0].nlen = 0;
+    parameter[0].leng = 0;
+    parameter[0].addr = NULL;
+    parameter[0].type = 0;
+
+    table[0].name =  malloc( 5 );
+    memset(table[0].name, 0, 5);
+    Copy("DOCU", table[0].name, 4, char);
+    table[0].nlen = 4;
+    table[0].type = RFCTYPE_CHAR;
+    table[0].leng = 80;
+    table[0].itmode = RFC_ITMODE_BYREFERENCE;
+
+    table[1].name = NULL;
+    table[1].ithandle = NULL;
+    table[1].nlen = 0;
+    table[1].leng = 0;
+    table[1].type = 0;
+    table[0].ithandle = ItCreate( table[0].name, 80, 0 , 0 );
 
     /* get the documentation out of the array */
     array = (AV*) SvRV( sv_store_docu );
     a_index = av_len( array );
     for (i = 0; i <= a_index; i++) {
-       p = (char *) ItAppLine( table[0].ithandle );
-       sprintf(p, "%s", SvPV( *av_fetch( array, i, FALSE ), PL_na ));
+       Copy(  SvPV( *av_fetch( array, i, FALSE ), PL_na ),
+	      ItAppLine( table[0].ithandle ), table[0].leng, char );
     };
-    parameter[0].name = NULL;
 
-    /* fprintf(stderr, "despatch RFC_DOCU\n"); */
     rc = RfcSendData( handle, parameter, table );
 
     return rc;

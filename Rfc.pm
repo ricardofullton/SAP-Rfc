@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.27';
+$VERSION = '1.28';
 @ISA = qw(DynaLoader Exporter);
 
 my $EXCEPTION_ONLY = 0;
@@ -62,6 +62,11 @@ my @SYSINFO = (
  
 #  valid login parameters
 my $VALID =  {
+    TRFC => 1,
+    TRFC_CONFIRM => 1,
+    TRFC_COMMIT => 1,
+    TRFC_ROLLBACK => 1,
+    TRFC_CHECK => 1,
     SNC_MODE => 1,
     SNC_QOP => 1,
     SNC_MYNAME => 1,
@@ -102,6 +107,46 @@ sub DESTROY {
 }
 
 
+# The default callback for tRFC CHECK event
+sub TID_CHECK {
+  my $tid = shift;
+
+  warn "in the default TID_CHECK\n";
+
+  return 0;
+}
+
+
+# The default callback for tRFC COMMIT event
+sub TID_COMMIT {
+  my $tid = shift;
+
+  warn "in the default TID_COMMIT\n";
+
+  return;
+}
+
+
+# The default callback for tRFC ROLLBACK event
+sub TID_ROLLBACK {
+  my $tid = shift;
+
+  warn "in the default TID_ROLLBACK\n";
+
+  return;
+}
+
+
+# The default callback for tRFC CONFIRM event
+sub TID_CONFIRM {
+  my $tid = shift;
+
+  warn "in the default TID_CONFIRM\n";
+
+  return;
+}
+
+
 # Construct a new SAP::Rfc Object.
 sub new {
 
@@ -128,6 +173,11 @@ sub new {
 	PASSWD => "ADMIN",
 	LANG   => "EN",
 	LCHECK   => "0",
+	TRFC   => 0,
+	TRFC_CHECK => \&SAP::Rfc::TID_CHECK,
+	TRFC_COMMIT => \&SAP::Rfc::TID_COMMIT,
+	TRFC_ROLLBACK => \&SAP::Rfc::TID_ROLLBACK,
+	TRFC_CONFIRM => \&SAP::Rfc::TID_CONFIRM,
 	@keys,
 	@rest
 	};
@@ -196,6 +246,9 @@ sub convtype {
 sub accept {
 
   my $self = shift;
+  my $callback = shift || "";
+  my $wait = shift || 0;
+
   die "must have TPNAME, GWHOST and GWSERV to Register RFCs\n"
     unless exists $self->{'GWHOST'} &&
            exists $self->{'GWSERV'} &&
@@ -222,9 +275,15 @@ sub accept {
   }
 
   #warn "docu: $d\n";
-  my $docu = [ map { pack("A80",$_) } split(/\n/,$d) ];
+  my $docu = [ (map { chomp($_); pack("A80",$_) } split(/\n/,$d)) ];
+  #warn "we have lines: ".scalar @{$docu} ."\n";
+  #warn "DOCU:".join("\n", @{$docu})."\n";
 
   my $ifaces = { map { $_->name() => $_->iface(1) } values %{$self->{'INTERFACES'}} };
+
+  # set the callback up
+  $self->{'WAIT'} = $wait || 0;
+  $self->{'CALLBACK'} = $callback || undef;
 
   return my_accept($conn, $docu, $ifaces, $self);
 
@@ -867,6 +926,42 @@ executable that comes with all SAP R/3 server implementations:
 
   If accept() returns a defined value then the $rfc->error() can be 
   checked for an associated error message.
+
+  accept() takes a two parameters \&callback(), and $wait.  \&callback()
+  is a subroutine reference that will be called each time an event has happened
+  within the accept loop.  If an RFC is called then the callback is made
+  after the RFC callback has been executed, otherwise the callback is made
+  after the accept timeout has been reached.  $wait specifies the time 
+  to wait in the accept loop before breaking to execute the callback
+  function.  If no wait interval is specified, then a default of
+  10 seconds is specified.
+  callback() must return true (Perl true) all RFC_SYS_EXCEPTION is set, and the
+  accept() loop exits.
+
+  For tRFC it must be activated by passing parameters to the $rfc = new SAP::Rfc( ... );
+  tRFC cannot be performed at the same time as standard registered RFC, do to the 
+  behaviour inside the main event loop.
+
+  Build the tRFC server connection like this:
+
+  my $rfc = new SAP::Rfc(
+             TRFC           => 1,
+             TRFC_CHECK     => \&do_my_tid_check,
+             TRFC_CONFIRM   => \&do_my_tid_confirm,
+             TRFC_ROLLBACK  => \&do_my_tid_rollback,
+             TRFC_COMMIT    => \&do_my_tid_commit,
+             TPNAME         => 'wibble.rfcexec',
+             GWHOST         => 'seahorse.local.net',
+             GWSERV         => '3300',
+             TRACE          => '1' );
+
+  TRFC => 1 - activates the installation of the tRFC transaction control.
+  TRFC_CHECK, TRFC_CONFIRM, TRFC_ROLLBACK, TRFC_COMMIT are parameters that
+  override the default callback functions for tRFC transaction control.
+  consult the saprfc.h header file of the rfcsdk for the full details.
+  TRFC_CHECK is the only one that can return a value - it returns true
+  if this is a new transaction to be processed, or false to reject the 
+  transaction.  All other TRFC_* callbacks return void().
 
 
 =head1 AUTHOR

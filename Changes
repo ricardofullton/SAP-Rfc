@@ -217,3 +217,7 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.31 Mon Jun  7 09:17:56 NZST 2004
  - fix a bug with the use of use Config
+
+1.32 Sun Jun 20 20:22:16 NZST 2004
+ - and in $rfc->errorKeys() for Adam Trickett so that he can get all
+ the RFC error trace file values.

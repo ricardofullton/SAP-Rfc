@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.31';
+$VERSION = '1.32';
 @ISA = qw(DynaLoader Exporter);
 
 my $EXCEPTION_ONLY = 0;
@@ -740,11 +740,21 @@ sub close {
 
 
 # Return error message
-sub error{
+sub error {
 
   my $self = shift;
   my $msg = $self->{'ERROR'};
   $msg =~ s/^.+MESSAGE\s*//;
+  return $msg;
+  
+}
+
+
+# Return error detailed
+sub errorKeys {
+
+  my $self = shift;
+  my $msg = { split(/\t/, $self->{'ERROR'}) };
   return $msg;
   
 }
@@ -861,6 +871,21 @@ For all SAP::Tab objects, and for complex SAP::Parm objects, a SAP::Struc object
   $rfc->error();
   Returns error string if previous call returned undef (currently 
   supported for discover, structure, is_connected and sapinfo).
+
+
+=head2 errorKeys()
+
+  $rfc->errorKeys();
+  Returns a hash of all the RFC error components as found in the standard
+  RFC trace file:
+  $VAR1 = {
+          'KEY' => 'RFC_ERROR_SYSTEM_FAILURE',
+          'GROUP' => '104',
+          'EXCEPT' => 'SYSTEM_FAILURE',
+          'MESSAGE' => 'Name or password is incorrect. Please re-enter'
+      };
+  Is an example of a login faliure.
+
 
 =head2 accept()
 

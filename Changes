@@ -86,3 +86,8 @@ Tidied up the documentation a bit as it is way out of date.
 0.96 Fri Dec 28 13:35:17 GMT 2001 
 
 Fixed a problem with sub nextRow in SAP::Iface, which was due to earlier changes in SAP::Struc.
+
+0.96 Fri Feb 22 09:19:00 GMT 2002 
+
+Fixed a problem with the installer - the version nos were wrong
+Added in the SECUDE login parameters

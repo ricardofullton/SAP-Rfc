@@ -1181,9 +1181,11 @@ sub _pack_structure {
         if ( $fld->{INTYPE} eq RFCTYPE_INT ){
 	# Long INT4
 #          $fld->{VALUE} = pack("I4",$fld->{VALUE});
+	  $fld->{VALUE} ||= 0;
           $fld->{VALUE} = pack("l",$fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2
+	  $fld->{VALUE} ||= 0;
           $fld->{VALUE} = pack("S",$fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT1 ){
 	# Short INT1
@@ -1205,11 +1207,13 @@ sub _pack_structure {
           $fld->{VALUE} = '000000' if ! $fld->{VALUE};
         } elsif ( $fld->{INTYPE} eq RFCTYPE_FLOAT ){
 	# Float
+	  $fld->{VALUE} ||= 0;
           $fld->{VALUE} = pack("d",$fld->{VALUE});
 #        } elsif ( $fld->{INTYPE} eq RFCTYPE_BCD and $fld->{VALUE} ){
         } elsif ( $fld->{INTYPE} eq RFCTYPE_BCD ){
 	#  All types of BCD
 	  $fld->{VALUE} =~ s/^\s+([ -+]\d.*)$/$1/;
+	  $fld->{VALUE} ||= 0;
 	  #print STDERR "SPRINTF: ".sprintf("%0".int(($fld->{LEN}*2) - 1).".".$fld->{DECIMALS}."f", $fld->{VALUE})."\n";
 	  $fld->{VALUE} = sprintf("%0".int(($fld->{LEN}*2) + 1).".".$fld->{DECIMALS}."f", $fld->{VALUE});
 	  $fld->{VALUE} =~ s/\.//g;
@@ -1223,6 +1227,7 @@ sub _pack_structure {
 	  #print STDERR "VALUE: ".unpack("H*",$fld->{VALUE})."\n";
 
         }
+	$fld->{VALUE} ||= "";
 #	print "FIELD: ", $fld->{NAME}, "  VAL: ", $fld->{VALUE}, "\n";
       
       } (0..$#fields);
@@ -1230,7 +1235,7 @@ sub _pack_structure {
   # find the length of a row
   my $lastoff = $self->{FIELDS}->{$fields[$#fields]}->{OFFSET} + 
                 $self->{FIELDS}->{$fields[$#fields]}->{LEN};
-  my $format = undef;
+  my $format = "";
   map {
         my $fld = $self->{FIELDS}->{$fields[$_]};
 	$format = join(" ","A".($lastoff - $fld->{OFFSET}), $format);

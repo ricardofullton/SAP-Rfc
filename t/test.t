@@ -21,10 +21,12 @@ sub getSource{
  my $if = $rfc->discover('RFC_READ_REPORT');
 
  $if->PROGRAM('SAPLGRAP');
+ #$if->PROGRAM('RSTXR3TR');
 
  $rfc->callrfc( $if );
 
  # Check for a particular line
+ #print STDERR join("\n",$if->tab('QTAB')->hashRows());
  return join('', map { $_->{LINE} } $if->tab('QTAB')->hashRows() ) =~ /LGRAPUXX/;
 
 }

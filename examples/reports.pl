@@ -1,5 +1,5 @@
 #!/usr/bin/perl
-#use lib '../lib';
+use lib '/web/perllib';
 use SAP::Rfc;
 use Data::Dumper;
 

@@ -3,7 +3,7 @@ package SAP::Rfc;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '0.96';
+$VERSION = '0.97';
 
 use SAP::Iface;
 
@@ -38,7 +38,7 @@ use Inline ( C=> Config =>
 # Config for Inline::MakeMaker
 use Inline C=> 'DATA',
                 NAME => 'SAP::Rfc',
-                VERSION => '0.95';
+                VERSION => '0.97';
 
 
 # Globals
@@ -70,6 +70,11 @@ my @SYSINFO = (
  
 #  valid login parameters
 my $VALID =  {
+    SNC_MODE => 1,
+    SNC_QOP => 1,
+    SNC_MYNAME => 1,
+    SNC_PARTNERNAME => 1,
+    SNC_LIB => 1,
     CLIENT => 1,
     PASSWD => 1,
     LANG => 1,
@@ -847,7 +852,10 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 	   Copy( SvPV(h_key, PL_na), mytables[tab_cnt].name, strlen( SvPV(h_key, PL_na)), char);
 	   mytables[tab_cnt].nlen = strlen( SvPV(h_key, PL_na));
 	   mytables[tab_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
-	   mytables[tab_cnt].ithandle = 
+           mytables[tab_cnt].itmode = RFC_ITMODE_BYREFERENCE;
+           mytables[tab_cnt].type = RFCTYPE_CHAR; 
+	   /* maybe should be RFCTYPE_BYTE */
+           mytables[tab_cnt].ithandle = 
 	       ItCreate( mytables[tab_cnt].name,
 			 SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) ), 0 , 0 );
 	   if ( mytables[tab_cnt].ithandle == NULL )

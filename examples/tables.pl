@@ -1,6 +1,5 @@
 #!/usr/bin/perl
 use strict;
-#use lib '../lib';
 use SAP::Rfc;
 use Data::Dumper;
 

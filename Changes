@@ -104,3 +104,8 @@ Note: the whole record/complex parameter values can still be passed in as string
 
 1.00 Fri 05.11.2002
 Remove dependency on Inline::C ( go back to using pure XS ), and control the exit on bad connects better
+
+1.02 Fri Nov 29 12:27:45 GMT 2002
+Rearranged the test suite, and fixed up makesoap.pl etc.
+fixed a bug to do with export parameter structures.
+

@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 use lib '../lib';
 use lib './lib';
-use lib '../blib';
+use lib '../blib/lib';
+use lib '../blib/arch';
 #use SAP::Rfc;
 use SAP::SOAP;
 use Data::Dumper;

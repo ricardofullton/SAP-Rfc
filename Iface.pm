@@ -276,7 +276,8 @@ sub iface{
     my $iface = {};
     map { $iface->{$_->name()} = { 'TYPE' => $_->type(),
 	                          'INTYPE' => $_->intype(),
-				  'VALUE' => $_->intvalue(),
+#				  'VALUE' => $_->intvalue(),
+                                  'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : $_->intvalue()),
 #				  'LEN' => ($_->intype() == RFCTYPE_CHAR ? length($_->intvalue()) : $_->leng()) }
                                   'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
 

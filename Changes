@@ -125,3 +125,7 @@ Added another internal type for structures - h - see EXID/INTYPE (there maybe mo
 Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, and Hashes passed into Parameters for structures etc.
 
 
+1.07 Mon Feb 24 13:34:09 GMT 2003
+  - fixed an old bug with empty BCD field types
+  - opefully suppressed a warning arroung $self->{VALUE} for parms
+

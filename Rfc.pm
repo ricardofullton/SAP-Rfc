@@ -5,7 +5,7 @@ use strict;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.06';
+$VERSION = '1.07';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { 0x01 }
@@ -501,6 +501,7 @@ sub intoext{
 	return unpack("d",$value);
     } elsif ( $parm->intype() == RFCTYPE_BCD ){
 	#  All types of BCD
+	$value = "0" unless $value;
 	my @flds = split(//, unpack("H*",$value));
 	if ( $flds[$#flds] eq 'd' ){
 	    splice( @flds,0,0,'-');

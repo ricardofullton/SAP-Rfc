@@ -30,7 +30,7 @@ my $IFACE_VALID = {
    EXCEPTIONS => 1
 };
 
-$VERSION = '1.04';
+$VERSION = '1.07';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -759,7 +759,7 @@ sub new {
      INTYPE => RFCTYPE_CHAR,
      DEFAULT => undef,
      CHANGED => 0,
-     VALUE => undef,
+     VALUE => '',
      @_
   };
 

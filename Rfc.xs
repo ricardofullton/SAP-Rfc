@@ -2,9 +2,6 @@
 #include "perl.h"
 #include "XSUB.h"
 
-#include <saprfc.h>
-#include <sapitab.h>
-
 #define MAX_PARA 64
 
 #define RFCIMPORT     0
@@ -19,11 +16,22 @@
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
-#include <signal.h>
 
+  
+/* SAP flag for Windows NT or 95 */
+#ifdef _WIN32
+#  ifndef SAPonNT
+#    define SAPonNT
+#  endif
+#endif
 
 #include "saprfc.h"
 #include "sapitab.h"
+
+#if defined(SAPonNT)
+#include "windows.h"
+#endif
+
 
 /*
  * local prototypes & declarations
@@ -37,16 +45,9 @@ static RFC_RC install_docu    ( RFC_HANDLE handle );
 
 static char * do_docu_docu( void );
 
-#define RUN_FREE    0
-#define RUN_WAIT    1
-#define RUN_READ    2
-
-#define FILE_READ   0
-#define FILE_WRITE  1
 
 /* store a reference to the documentation array ref */
 SV* sv_store_docu;
-
 
 
 /* standard error call back handler - installed into connnection object */
@@ -435,6 +436,24 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
    sv_store_docu = sv_docu;
    p_hash = (HV*)SvRV( sv_ifaces );
 
+#ifdef SAPonNT
+   /* if one uses rfcexec as a bootstrap to start the
+    * RFC COM support features, one need to initialize
+    * Win32's COM routines
+    * we discared the return value since there are few
+    * users for this scenario. If this call fails the
+    * follwing COM calls will break anyway, so that users
+    * which do need this call will not go far.
+    * for users, which do not need this call,
+    * it would be unfortunate to stop here
+    */
+    /*
+    Remove this temporarily to fix compiler problems for WIN32
+   (void)CoInitialize(NULL);
+   */
+#endif
+
+
    /*
     * enter main loop
     */
@@ -467,6 +486,13 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces )
     * also close connection and terminate
     */
    RfcClose( handle );
+
+#ifdef SAPonNT
+    /*
+    Remove this temporarily to fix compiler problems for WIN32
+   (void)CoUninitialize();
+   */
+#endif
 
    return newSViv(rc);
 } /* main */

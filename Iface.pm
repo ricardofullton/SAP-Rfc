@@ -905,7 +905,7 @@ sub intvalue {
 #  print STDERR "PARM: ".$self->name() ." type ".$self->intype()." is: ".$self->{'VALUE'}."\n";
 # Sort out theinternal format
 #  if ( $self->{VALUE}){
-  if ( $self->{VALUE} ne ''){
+  if ( defined $self->{'VALUE'} && $self->{'VALUE'} ne ''){
       if ( $self->intype() == RFCTYPE_BCD){
 	  return pack("H*", $self->{VALUE});
       } elsif ( $self->intype() == RFCTYPE_FLOAT){

@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.18';
+$VERSION = '1.19';
 @ISA = qw(DynaLoader Exporter);
 
 sub dl_load_flags { $^O =~ /hpux/ ? 0x00 : 0x01 }
@@ -95,8 +95,8 @@ my $DEBUG = undef;
 # Tidy up open Connection when DESTROY Destructor Called
 sub DESTROY {
     my $self = shift;
-    MyDisconnect( $self->{'handle'} )
-          if exists $self->{'handle'};
+    MyDisconnect( $self->{'HANDLE'} )
+          if exists $self->{'HANDLE'};
 }
 
 
@@ -142,7 +142,7 @@ sub new {
       my $conn = MyConnect( login_string( $self ) );
 
       die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
-      $self->{HANDLE} = $conn;
+      $self->{'HANDLE'} = $conn;
     }
 
 # create the object and return it
@@ -334,7 +334,7 @@ sub discover{
 			 'LEN' => 215 } 
   }; 
 
-  my $ifc = MyRfcCallReceive( $self->{HANDLE},
+  my $ifc = MyRfcCallReceive( $self->{'HANDLE'},
 			      "RFC_GET_FUNCTION_INTERFACE_P",
 			      $if );
   
@@ -499,7 +499,7 @@ sub structure{
 		       'LEN' => 83 } 
   }; 
 
-  my $str = MyRfcCallReceive( $self->{HANDLE},
+  my $str = MyRfcCallReceive( $self->{'HANDLE'},
 			      "RFC_GET_STRUCTURE_DEFINITION_P",
 			      $iface );
   
@@ -530,7 +530,7 @@ sub structure{
 sub handle{
 
   my $self = shift;
-  return  $self->{HANDLE};
+  return  $self->{'HANDLE'};
   
 }
 
@@ -539,12 +539,12 @@ sub handle{
 sub is_connected{
 
   my $self = shift;
-  my $ping = MyRfcCallReceive( $self->{HANDLE}, "RFC_PING", {} );
+  my $ping = MyRfcCallReceive( $self->{'HANDLE'}, "RFC_PING", {} );
   
   if ($ping->{'__RETURN_CODE__'} eq '0') {
   	return 1;
   } else {
-  	$self->{ERROR} = $ping->{'__RETURN_CODE__'};
+  	$self->{'ERROR'} = $ping->{'__RETURN_CODE__'};
 	return undef;
   }
   
@@ -558,11 +558,11 @@ sub sapinfo {
 
   my $self = shift;
 
-  if ( ! exists $self->{SYSINFO} ){
+  if ( ! exists $self->{'SYSINFO'} ){
     die "SAP Connection Not Open for SYSINFO "
       if ! is_connected( $self );
 
-  my $sysinfo = MyRfcCallReceive( $self->{HANDLE}, "RFC_SYSTEM_INFO",
+  my $sysinfo = MyRfcCallReceive( $self->{'HANDLE'}, "RFC_SYSTEM_INFO",
 				  {   'RFCSI_EXPORT' => {
 				      'TYPE' => RFCIMPORT,
 				      'VALUE' => '',
@@ -572,24 +572,24 @@ sub sapinfo {
 				  );
   
     if ($sysinfo->{'__RETURN_CODE__'} ne '0') {
-	$self->{ERROR} = $sysinfo->{'__RETURN_CODE__'};
+	$self->{'ERROR'} = $sysinfo->{'__RETURN_CODE__'};
 	return undef;
     }
 
     my $pos = 0;
     my $info = {};
     map {
-	$info->{$_->{NAME}} = 
-	    substr($sysinfo->{'RFCSI_EXPORT'},$pos, $_->{LEN});
-	$pos += $_->{LEN}
+	$info->{$_->{'NAME'}} = 
+	    substr($sysinfo->{'RFCSI_EXPORT'},$pos, $_->{'LEN'});
+	$pos += $_->{'LEN'}
     } @SYSINFO;
 
 
-    $self->{RETURN} = $return;
-    $self->{SYSINFO} = $info;
+    $self->{'RETURN'} = $return;
+    $self->{'SYSINFO'} = $info;
   }
 
-  return  $self->{SYSINFO};
+  return  $self->{'SYSINFO'};
 
 }
 
@@ -607,7 +607,7 @@ sub callrfc {
 
 #  print STDERR "IFACE: ".Dumper($iface->iface );
 
-  my $result = MyRfcCallReceive( $self->{HANDLE}, $iface->name, $iface->iface );
+  my $result = MyRfcCallReceive( $self->{'HANDLE'}, $iface->name, $iface->iface );
 
   if ($DEBUG){
       use  Data::Dumper;
@@ -661,10 +661,10 @@ sub intoext{
 # Close the Current Open Handle
 sub close {
   my $self = shift;
-  if ( exists $self->{HANDLE} ) {
-      MyDisconnect( $self->{HANDLE} );
-      delete $self->{HANDLE};
-      delete $self->{SYSINFO};
+  if ( exists $self->{'HANDLE'} ) {
+      MyDisconnect( $self->{'HANDLE'} );
+      delete $self->{'HANDLE'};
+      delete $self->{'SYSINFO'};
       return 1;
   } else {
       return undef;
@@ -676,7 +676,7 @@ sub close {
 sub error{
 
   my $self = shift;
-  my $msg = $self->{ERROR};
+  my $msg = $self->{'ERROR'};
   $msg =~ s/^.+MESSAGE\s*//;
   return $msg;
   

@@ -100,6 +100,38 @@ static void  DLL_CALL_BACK_FUNCTION  rfc_error( char * operation ){
 
 
 /* build a connection to an SAP system */
+SV*  MyBcdToChar(SV* sv_bcd){
+  int   rc,
+        bcd_char_len,
+        bcd_num_len,
+        decimal_no;
+
+  char           bcd_char[33];
+  unsigned char  bcd_num[16];
+
+  char * ptr;
+
+  bcd_char_len = 4;
+  bcd_num_len = 3;
+  decimal_no = 1;
+  memset(bcd_num+0, 0, sizeof(bcd_num));
+  memset(bcd_char+0, 0, sizeof(bcd_char));
+  //Copy(SvPV( sv_bcd, 2 ), (char *) bcd_num, 2, char);
+  memcpy(bcd_num+0, SvPV(sv_bcd, SvCUR(sv_bcd)), 3);
+
+  //rc = RfcConvertBcdToChar((RFC_BCD *) SvPV(sv_bcd, SvCUR(sv_bcd)),
+  rc = RfcConvertBcdToChar((RFC_BCD *) bcd_num,
+                           bcd_num_len,
+                           decimal_no,
+                           (RFC_CHAR *) bcd_char,
+                           bcd_char_len);
+  //memset(bcd_char+0, 0, 32 + 1);
+  fprintf(stderr, "new bcd: %s#\n", bcd_char);
+  return newSViv(1);
+}
+
+
+/* build a connection to an SAP system */
 SV*  MyConnect(SV* connectstring){
 
     RFC_ENV            new_env;
@@ -202,6 +234,19 @@ static void * make_strdup( SV* value ){
 
 }
 
+/* RfcAllow */
+SV*  MyAllowStartProgram(SV* sv_program_name){
+  
+   RfcAllowStartProgram( SvPV(sv_program_name, PL_na) );
+   return newSViv(1);
+		    
+}                                                                                                
+
+
+/*
+#define ENTRIES( tab ) ( sizeof(tab)/sizeof((tab)[0]) )
+*/
+
 
 /* build the RFC call interface, do the RFC call, and then build a complex
   hash structure of the results to pass back into perl */
@@ -237,6 +282,21 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
    HV*                hash = newHV();
 
 
+
+/*
+static RFC_TYPE_ELEMENT typeOfRfcTest[] =
+{
+  { "VINDX",    RFCTYPE_WSTRING,   8,    0 },
+  { "VALUE",    RFCTYPE_WSTRING,       8,                 0 },
+
+};
+
+static RFC_TYPEHANDLE handleOfRfcTest;
+*/
+
+
+
+
    tab_cnt = 0;
    exp_cnt = 0;
    imp_cnt = 0;
@@ -259,6 +319,24 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
        switch ( SvIV(sv_type) ){
 	   case RFCIMPORT:
 	     /* build an import parameter and allocate space for it to be returned into */
+		 /*
+		 if (strcmp("ZTEST", function) == 0)
+		 {
+             rc = RfcInstallStructure("RETURN",
+                               typeOfRfcTest,
+                               ENTRIES(typeOfRfcTest),
+                               &handleOfRfcTest );
+	   myimports[imp_cnt].name = make_strdup( h_key );
+	   if ( myimports[imp_cnt].name == NULL )
+	       return 0;
+	   myimports[imp_cnt].nlen = strlen( SvPV(h_key, PL_na));
+	   myimports[imp_cnt].addr = make_space( *hv_fetch(p_hash, (char *) "LEN", 3, FALSE) );
+	   myimports[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
+	   myimports[imp_cnt].type = handleOfRfcTest;
+	   ++imp_cnt;
+		 continue;
+		 }
+		 */
 	   myimports[imp_cnt].name = make_strdup( h_key );
 	   if ( myimports[imp_cnt].name == NULL )
 	       return 0;
@@ -266,6 +344,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 	   myimports[imp_cnt].addr = make_space( *hv_fetch(p_hash, (char *) "LEN", 3, FALSE) );
 	   myimports[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
 	   myimports[imp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+
 	   ++imp_cnt;
 	   break;
 
@@ -442,7 +521,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 #ifdef DOIBMWKRND
 	   hv_store(  hash, mytables[tab_cnt].name, mytables[tab_cnt].nlen, newRV_noinc( array = newAV() ), 0);
 #else
-	   hv_store(  hash, mytables[tab_cnt].name, mytables[tab_cnt].nlen, newRV_noinc( (SV*) array = newAV() ), 0);
+	   hv_store(  hash, mytables[tab_cnt].name, mytables[tab_cnt].nlen, newRV_noinc( (SV*) ( array = newAV() ) ), 0);
 #endif
 	   /*  grab each table row and push onto an array */
 	   for (irow = 1; irow <=  ItFill(mytables[tab_cnt].ithandle); irow++){
@@ -1202,7 +1281,7 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 #ifdef DOIBMWKRND
 	   hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( array = newAV() ), 0);
 #else
-	   hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( (SV*) array = newAV() ), 0);
+	   hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( (SV*) ( array = newAV() ) ), 0);
 #endif
 	   /*  grab each table row and push onto an array */
 	   if (table[tab_cnt].ithandle != NULL){
@@ -1503,8 +1582,16 @@ PROTOTYPES: DISABLE
 
 
 SV *
+MyBcdToChar (sv_bcd)
+	SV *	sv_bcd
+
+SV *
 MyConnect (sv_handle)
 	SV *	sv_handle
+
+SV *
+MyAllowStartProgram (sv_program_name)
+	SV *	sv_program_name
 
 SV *
 MyDisconnect (sv_handle)

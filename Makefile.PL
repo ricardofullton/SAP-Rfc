@@ -205,14 +205,12 @@ INFO
 
 
 WriteMakefile(
-    clean => { 'FILES'    => './examples/*.trc *.inl *.trc testconn ./examples/testconn *~ core test*.txt *.tar.gz _Inline ./examples/_Inline' },
+    clean => { 'FILES'    => 'CPICTRC* ./.rfc_cache/* ./examples/.rfc_cache/* ./examples/*.trc ./examples/CPICTRC* *.inl *.trc testconn ./examples/testconn *~ core test*.txt *.tar.gz _Inline ./examples/_Inline' },
     dist => { 'TARFLAGS'    => 'cvf',
               'COMPRESS'        => 'gzip -9f',
             'SUFFIX'    => '.tgz'},
     'AUTHOR' => 'Piers Harding <piers@cpan.org>',
-    'ABSTRACT' => 'Perl extension for performing RFC Function calls
-    agains an SAP R/3 System',
-
+    'ABSTRACT' => 'Perl extension for performing RFC Function calls agains an SAP R/3 System',
     'LINKTYPE'    => 'dynamic',
     'VERSION_FROM'    => 'Rfc.pm',
     'NAME'    => 'SAP::Rfc',
@@ -271,11 +269,11 @@ print "\nPlease Enter The Following:\n";
 open(FIL,">testconn") or die "cant open parm file: $!";
 open(FILCP,">examples/testconn") or die "cant open parm file: $!";
 &get("ASHOST", "Test SAP System Hostname:","localhost");
-&get("SYSNR", "System Number:","18");
+&get("SYSNR", "System Number:","00");
 &get("CLIENT", "Client Number:","000");
 &get("LANG", "Login Language:","en");
 &get("USER", "User Id:","DEVELOPER");
-&get("PASSWD", "Password:","19920706");
+&get("PASSWD", "Password:","developer");
 &get("TRACE", "Trace Level:","1");
 close FIL;
 close FILCP;

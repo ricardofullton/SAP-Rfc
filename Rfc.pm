@@ -6,16 +6,26 @@ require 5.005;
 
 require DynaLoader;
 require Exporter;
+use Data::Dumper;
+
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.32';
+$VERSION = '1.36';
 @ISA = qw(DynaLoader Exporter);
 
+# Only return the exception key for registered RFCs
 my $EXCEPTION_ONLY = 0;
 
-sub dl_load_flags { $^O =~ /hpux/ ? 0x00 : 0x01 }
+# The RFC structure cache
+my $USECACHE = "";
+my $DEFAULT_CACHE = ".rfc_cache/";
+my $CACHE = "";
+
+
+sub dl_load_flags { $^O =~ /hpux|aix/ ? 0x00 : 0x01 }
 SAP::Rfc->bootstrap($VERSION);
 
 use SAP::Iface;
+use SAP::Idoc;
 
 use constant RFCIMPORT     => 0;
 use constant RFCEXPORT     => 1;
@@ -110,9 +120,7 @@ sub DESTROY {
 # The default callback for tRFC CHECK event
 sub TID_CHECK {
   my $tid = shift;
-
-  warn "in the default TID_CHECK: $tid\n";
-
+  warn "in the default TID_CHECK: $tid - see the SAP::Rfc documentation to overide\n";
   return 0;
 }
 
@@ -120,9 +128,7 @@ sub TID_CHECK {
 # The default callback for tRFC COMMIT event
 sub TID_COMMIT {
   my $tid = shift;
-
-  warn "in the default TID_COMMIT: $tid\n";
-
+  warn "in the default TID_COMMIT: $tid - see the SAP::Rfc documentation to overide\n";
   return;
 }
 
@@ -130,9 +136,7 @@ sub TID_COMMIT {
 # The default callback for tRFC ROLLBACK event
 sub TID_ROLLBACK {
   my $tid = shift;
-
-  warn "in the default TID_ROLLBACK: $tid\n";
-
+  warn "in the default TID_ROLLBACK: $tid - see the SAP::Rfc documentation to overide\n";
   return;
 }
 
@@ -140,9 +144,7 @@ sub TID_ROLLBACK {
 # The default callback for tRFC CONFIRM event
 sub TID_CONFIRM {
   my $tid = shift;
-
-  warn "in the default TID_CONFIRM: $tid\n";
-
+  warn "in the default TID_CONFIRM: $tid - see the SAP::Rfc documentation to overide\n";
   return;
 }
 
@@ -157,8 +159,7 @@ sub new {
     if ( scalar @rest == 1 ){
 	$loginfile = $rest[0] if $rest[0];
 	if (-f $loginfile){
-	    open (FIL,"<$loginfile")
-		or die "$! : could not open login file $loginfile";
+	    open (FIL,"<$loginfile") or die "$! : could not open login file $loginfile";
 	    my @file = <FIL>;
 	    close FIL;
 	    map { push @keys, split "\t",$_ } @file;
@@ -191,12 +192,23 @@ sub new {
 # eg. SAP => external program
     unless (exists $self->{'TPNAME'}){
 # create the connection string and login to SAP
-      #warn "THE LOGIN STRING: ".login_string( $self )."\n";
       my $conn = MyConnect( login_string( $self ) );
-
       die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
       $self->{'HANDLE'} = $conn;
     }
+
+# ensure that the structure cache has been setup
+# if being used
+    if ($USECACHE){
+      $CACHE = $DEFAULT_CACHE unless $CACHE;
+    }
+    
+    if ($CACHE){
+      mkdir $CACHE unless -d $CACHE;
+      mkdir $CACHE.'/structs' unless -d $CACHE.'/structs';
+      mkdir $CACHE.'/ifaces' unless -d $CACHE.'/ifaces';
+      mkdir $CACHE.'/idocs' unless -d $CACHE.'/idocs';
+	}
 
 # create the object and return it
     bless ($self, $class);
@@ -275,20 +287,16 @@ sub accept {
     $d .= " \n";
   }
 
-  #warn "docu: $d\n";
   my $docu = [ (map { chomp($_); pack("A80",$_) } split(/\n/,$d)) ];
-  #warn "we have lines: ".scalar @{$docu} ."\n";
-  #warn "DOCU:".join("\n", @{$docu})."\n";
 
   my $ifaces = { map { $_->name() => $_->iface(1) } values %{$self->{'INTERFACES'}} };
 
   # set the callback up
   $self->{'WAIT'} = $wait || 0;
   $self->{'CALLBACK'} = $callback || undef;
-
   return my_accept($conn, $docu, $ifaces, $self);
-
 }
+
 
 sub Handler {
 
@@ -296,11 +304,6 @@ sub Handler {
   my $iface = shift;
   my $data = shift;
   my $tid = @_ ? shift @_ : "";
-
-  #use Data::Dumper;
-  #warn "handler is: ".Dumper($handler);
-  #warn "iface is: ".Dumper($iface);
-  #warn "data is: ".Dumper($data);
 
   map {
 	  $_->intvalue( intoext( $_, $data->{$_->name()} ) )
@@ -315,13 +318,11 @@ sub Handler {
   eval { $result = &$handler( $iface, $tid ); };
   if ($@ || ! $result){
 	my ($err) =  ($SAP::Rfc::EXCEPTION_ONLY ? ( $@ =~ /^(\w+)\s/) : $@);
-        #warn "execution of handler($SAP::Rfc::EXCEPTION_ONLY) failed: '$@' => '$err'\n";
 
 	$result = { '__EXCEPTION__' => "$err" || "handler exec failed" };
   } else {
         $result = $iface->iface;
   }
-  #warn "Result is going to be: ".Dumper($result);
   return $result;
 
 }
@@ -336,12 +337,10 @@ sub login_string {
   $self->{PASSWD} = uc( $self->{PASSWD} );
 
 # create the login string but only return valid parameters
-  #map { $connect.= $_ . "=\"" . $self->{$_} . "\" " } keys %{$self};
   map { $connect.= $_ . "=" . $self->{$_} . " " } keys %{$self};
 
   return $connect;
 }
-
 
 
 # method to return the current date in ABAP DATE format
@@ -365,6 +364,19 @@ sub saptime{
 }
 
 
+#With that the Method it is possible to launch a program. This feature is
+#hevealy used by SAP DMS (Document Management System) which sends and
+#receives Files from and to the client.
+
+#Addon from Matthias Flury                                                                       
+sub allow_start_program {
+   my $self = shift;
+   my $program = shift;
+   MyAllowStartProgram($program);
+   return 1;
+}                                                                                                
+
+
 # method to access aggregate functions SAP::Interface
 sub iface{
 
@@ -380,13 +392,25 @@ sub iface{
 
 
 # method to find the structure of an interface
-sub discover{
+sub discover {
   my $self = shift;
   die "No Interface supplied to RFC " if ! @_;
   my $iface = shift;
   die "RFC is NOT connected for interface discovery!"
      if ! is_connected( $self );
   my $info = $self->sapinfo();
+
+  if ($CACHE && -f $CACHE."/ifaces/".$iface.".txt"){
+    my $iface1;
+	  open(IFC, "<$CACHE/ifaces/".$iface.".txt") or 
+	  warn "cant open structure file $CACHE/ifaces/".$iface.".txt - $!";
+	  $iface = join("",(<IFC>));
+	  close IFC;
+	  eval($iface);
+    $iface1->{'SYSINFO'} = $info;
+    #$iface1->{'RFCINTTYP'} = $info->{'RFCINTTYP'};
+	  return $iface1;
+  }
 
   my $if = {
       'FUNCNAME' => { 'TYPE' => RFCEXPORT,
@@ -396,7 +420,8 @@ sub discover{
       'PARAMS_P'    => { 'TYPE' => RFCTABLE,
 			 'VALUE' => [],
 			 'INTYPE' => RFCTYPE_BYTE,
-			 'LEN' => 215 } 
+			 'LEN' => 215 },
+
   }; 
 
   my $ifc = MyRfcCallReceive( $self->{'HANDLE'},
@@ -409,7 +434,6 @@ sub discover{
   }
 
   my $interface = new SAP::Iface(NAME => $iface);
-#  print STDERR "VESION: ".Dumper($info)."\n";
   for my $row ( @{ $ifc->{'PARAMS_P'} } ){
 #      print STDERR "PARAM ROW: $row \n";
       my ($type, $name, $tabname, $field, $datatype,
@@ -418,8 +442,6 @@ sub discover{
 	      unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
 		      "A A30 A30 A30 A A4 A6 A6 A6 A21 A79 A1" :
 		      "A A30 A10 A10 A A4 A6 A6 A6 A21 A79", $row );
-#      print STDERR "DATA TYPE: #$datatype# \n";
-#      print STDERR "FIELD: #$field# \n";
       $name =~ s/\s//g;
       $tabname =~ s/\s//g;
       $field =~ s/\s//g;
@@ -427,10 +449,10 @@ sub discover{
       $decs = int($decs);
       # if the character value default is in quotes - remove quotes
       if ($default =~ /^\'(.*?)\'\s*$/){
-	  $default = $1;
+	      $default = $1;
 	  # if the value is an SY- field - we have some of them in sapinfo
       } elsif ($default =~ /^SY\-(\w+)\W*$/) {
-	  $default = 'RFC'.$1;
+	      $default = 'RFC'.$1;
 	  if ( exists $info->{$default} ) {
 	      $default = $info->{$default};
 	  } else {
@@ -440,46 +462,42 @@ sub discover{
       my $structure = "";
       if ($datatype eq "C"){
 	  # Character
-	  $datatype = RFCTYPE_CHAR;
-	  $default = " " if !$default ||  $default =~ /^SPACE\s*$/;
-#	  print STDERR "SET $name TO $default \n";
+	      $datatype = RFCTYPE_CHAR;
+	      $default = " " if !$default ||  $default =~ /^SPACE\s*$/;
       } elsif ($datatype eq "X"){
 	  # Integer
-	  $datatype = RFCTYPE_BYTE;
-	  $default = pack("H*", $default) if $default;
+	      $datatype = RFCTYPE_BYTE;
+	      $default = pack("H*", $default) if $default;
       } elsif ($datatype eq "I"){
 	  # Integer
-	  $datatype = RFCTYPE_INT;
-	  $default = int($default) if $default;
+	      $datatype = RFCTYPE_INT;
+	      $default = int($default) if $default;
       } elsif ($datatype eq "s"){
 	  # Short Integer
-	  $datatype = RFCTYPE_INT2;
-	  $default = int($default) if $default;
+	      $datatype = RFCTYPE_INT2;
+	      $default = int($default) if $default;
       } elsif ($datatype eq "D"){
 	  # Date
-	  $datatype = RFCTYPE_DATE;
-	  $default = '00000000';
-	  $intlen = 8;
+	      $datatype = RFCTYPE_DATE;
+	      $default = '00000000';
+	      $intlen = 8;
       } elsif ($datatype eq "T"){
 	  # Time
-	  $datatype = RFCTYPE_TIME;
-	  $default = '000000';
-	  $intlen = 6;
+	      $datatype = RFCTYPE_TIME;
+	      $default = '000000';
+	      $intlen = 6;
       } elsif ($datatype eq "P"){
 	  # Binary Coded Decimal eg. CURR QUAN etc
-	  $datatype = RFCTYPE_BCD;
-	  #$default = 0;
+	      $datatype = RFCTYPE_BCD;
       } elsif ($datatype eq "N"){
 	  #  Numchar
-	  $datatype = RFCTYPE_NUM;
-	  $default = 0 unless $default;
-	  $default = sprintf("%0".$intlen."d", $default) 
-	      if $default == 0 || $default =~ /^[0-9]+$/;
+	      $datatype = RFCTYPE_NUM;
+	      $default = 0 unless $default;
+	      $default = sprintf("%0".$intlen."d", $default) 
+	          if $default == 0 || $default =~ /^[0-9]+$/;
       } elsif ($datatype eq "F"){
 	  #  Float
-	  $datatype = RFCTYPE_FLOAT;
-	  #$default = 0;
-#      } elsif ( ($datatype eq " " or ! $datatype ) and $type ne "X"){
+	      $datatype = RFCTYPE_FLOAT;
       } elsif ( 
       # new style
          ( $datatype eq "u" or $datatype eq "h" or $datatype eq " " or ! $datatype ) and $field eq "" and $type ne "X"
@@ -488,20 +506,19 @@ sub discover{
 #      or ( $info->{'RFCSAPRL'} !~ /^6/ and ($datatype eq " " or ! $datatype ) and $type ne "X")
               ){
 	  # do a structure object
-#	  print STDERR " $name creating a structure: name - $tabname - field - $field - $datatype - $type\n";
-	  $structure = structure( $self, $tabname );
-	  $datatype = RFCTYPE_BYTE;
+	      $structure = structure( $self, $tabname );
+	      $datatype = RFCTYPE_BYTE;
       } else {
 	  # Character
-	  $datatype = RFCTYPE_CHAR;
-	  $default = " " if $default =~ /^SPACE\s*$/;
+	      $datatype = RFCTYPE_CHAR;
+	      $default = " " if $default =~ /^SPACE\s*$/;
       };
       $datatype = RFCTYPE_CHAR if ! $datatype;
       if ($type eq "I"){
 	  #  Export Parameter - Reverse perspective
-	  $interface->addParm( 
+	      $interface->addParm( 
 			       RFCINTTYP => $info->{'RFCINTTYP'},
-			       TYPE => RFCEXPORT,
+			       TYPE => int(RFCEXPORT),
 			       INTYPE => $datatype, 
 			       NAME => $name, 
 			       STRUCTURE => $structure, 
@@ -511,9 +528,9 @@ sub discover{
 			       LEN => $intlen);
       } elsif ( $type eq "E"){
 	  #  Import Parameter - Reverse perspective
-	  $interface->addParm( 
+	      $interface->addParm( 
 			       RFCINTTYP => $info->{'RFCINTTYP'},
-			       TYPE => RFCIMPORT,
+			       TYPE => int(RFCIMPORT),
 			       INTYPE => $datatype, 
 			       NAME => $name, 
 			       STRUCTURE => $structure, 
@@ -522,27 +539,79 @@ sub discover{
 			       LEN => $intlen);
       } elsif ( $type eq "T"){
 	  #  Table
-	  $interface->addTab(
+	      $interface->addTab(
 			     # INTYPE => $datatype, 
-			     INTYPE => RFCTYPE_BYTE, 
-			     NAME => $name,
-			     STRUCTURE => $structure, 
-			     LEN => $intlen);
+			       RFCINTTYP => $info->{'RFCINTTYP'},
+			       INTYPE => RFCTYPE_BYTE, 
+			       NAME => $name,
+			       STRUCTURE => $structure, 
+			       LEN => $intlen);
       } else {
 	  # This is an exception definition
-	  $interface->addException( $name );
+	      $interface->addException( $name );
       };
   };
   # stash a copy of sysinfo on the iface
   $interface->{'SYSINFO'} = $info;
-  $interface->{'LINTTYP'} = $self->{'LINTTYP'};
+  #$interface->{'RFCINTTYP'} = $info->{'RFCINTTYP'};
+
+  # save the interface to the cache
+  if ($CACHE){
+    open(IFC, ">$CACHE/ifaces/".$interface->name().".txt") or
+      warn "cant open cache file for $CACHE/".$interface->name().".txt - $!\n";
+    $Data::Dumper::Varname = 'iface';
+    print IFC Dumper($interface);
+    close IFC;
+  }
   return $interface;
 
 }
 
 
+# method to return an IDOC object of SAP::IDOC type
+sub lookupIdoc {
+
+  my $self = shift;
+  my $idoc = shift;
+  if ($CACHE && -f $CACHE."/idocs/".$idoc.".txt"){
+    my $idoc1;
+  	open(IDOC, "<$CACHE/idocs/".$idoc.".txt") or 
+	    warn "cant open structure file $CACHE/idocs/".$idoc.".txt - $!";
+	  $idoc = join("",(<IDOC>));
+	  close IDOC;
+	  eval($idoc);
+	  return $idoc1;
+  }
+  my $idoc = new SAP::Idoc( 'NAME' => $idoc, 
+                            'SINGLE' => $self->discover('IDOC_INBOUND_SINGLE'),
+                            'MANDT' => $self->{'CLIENT'},
+							);
+
+  # discover the complete structure of an IDOC
+  my $idoctype = $self->discover('IDOCTYPE_READ_COMPLETE');
+  $idoctype->PI_IDOCTYP($idoc->name);
+  my $segments = $idoctype->tab('PT_SEGMENTS');
+  $self->callrfc($idoctype);
+  while ( my $row = $segments->nextRow() ){
+    $row->{'SEGMENTTYP'} =~ s/\s//g;
+	  $idoc->_addSegment($self->structure($row->{'SEGMENTTYP'}), $row);
+  }
+
+  # save the structure to the cache
+  if ($CACHE){
+    open(IDOC, ">$CACHE/idocs/".$idoc->name().".txt") or
+      warn "cant open cache file for $CACHE/idocs/".$idoc->name().".txt - $!\n";
+    $Data::Dumper::Varname = 'idoc';
+    print IDOC Dumper($idoc);
+    close IDOC;
+  }
+  return $idoc;
+
+}
+
+
 # method to return a structure object of SAP::Structure type
-sub structure{
+sub structure {
 
   my $self = shift;
   my $struct = shift;
@@ -554,15 +623,28 @@ sub structure{
   };
   my $info = $self->sapinfo();
 
+  if ($CACHE && -f $CACHE."/structs/".$struct.".txt"){
+    my $struct1;
+	  open(STR, "<$CACHE/structs/".$struct.".txt") or 
+	    warn "cant open structure file $CACHE/structs/".$struct.".txt - $!";
+	  $struct = join("",(<STR>));
+	  close STR;
+	  eval($struct);
+	  $struct1->{'RFCINTTYP'} = $info->{'RFCINTTYP'};
+	  $struct1->{'LINTTYP'} = $self->{'LINTTYP'};
+    #$struct1->{'SYSINFO'} = $info;
+	  return $struct1;
+  }
+
   my $iface = {
-      'TABNAME' => { 'TYPE' => RFCEXPORT,
-		     'VALUE' => $struct,
-		     'INTYPE' => RFCTYPE_CHAR,
-		     'LEN' => length($struct) }, 
-      'FIELDS'    => { 'TYPE' => RFCTABLE,
-		       'VALUE' => [],
-		       'INTYPE' => RFCTYPE_BYTE,
-		       'LEN' => 83 } 
+      'TABNAME' => { 'TYPE' => int(RFCEXPORT),
+	    'VALUE' => $struct,
+	    'INTYPE' => RFCTYPE_CHAR,
+	    'LEN' => length($struct) }, 
+      'FIELDS'    => { 'TYPE' => int(RFCTABLE),
+	    'VALUE' => [],
+	    'INTYPE' => RFCTYPE_BYTE,
+	    'LEN' => 83 } 
   }; 
 
   my $str = MyRfcCallReceive( $self->{'HANDLE'},
@@ -571,7 +653,7 @@ sub structure{
   
   if ($str->{'__RETURN_CODE__'} ne '0') {
   	$self->{ERROR} = $str->{'__RETURN_CODE__'};
-	return undef;
+	  return undef;
   }
   
   $struct = SAP::Struc->new( NAME => $struct, RFCINTTYP => $info->{'RFCINTTYP'}, LINTTYP => $self->{'LINTTYP'} );
@@ -588,6 +670,16 @@ sub structure{
 			 INTYPE   => $exid
 			 )
       }  ( @{ $str->{'FIELDS'} } );
+  #$struct->{'SYSINFO'} = $info;
+
+  # save the structure to the cache
+  if ($CACHE){
+    open(STR, ">$CACHE/structs/".$struct->name().".txt") or
+      warn "cant open cache file for $CACHE/".$struct->name().".txt - $!\n";
+    $Data::Dumper::Varname = 'struct';
+    print STR Dumper($struct);
+    close STR;
+  }
   return $struct;
 
 }
@@ -611,7 +703,7 @@ sub is_connected{
   	return 1;
   } else {
   	$self->{'ERROR'} = $ping->{'__RETURN_CODE__'};
-	return undef;
+  	return undef;
   }
   
 }
@@ -627,36 +719,28 @@ sub sapinfo {
   if ( ! exists $self->{'SYSINFO'} ){
     die "SAP Connection Not Open for SYSINFO "
       if ! is_connected( $self );
-
-  my $sysinfo = MyRfcCallReceive( $self->{'HANDLE'}, "RFC_SYSTEM_INFO",
-				  {   'RFCSI_EXPORT' => {
-				      'TYPE' => RFCIMPORT,
+    my $if = {   'RFCSI_EXPORT' => {
+				      'TYPE' => int(RFCIMPORT),
 				      'VALUE' => '',
 				      'INTYPE' => RFCTYPE_CHAR,
 				      'LEN' => 200 }
-				  }
-				  );
-  
+				  };
+    my $sysinfo = MyRfcCallReceive( $self->{'HANDLE'}, "RFC_SYSTEM_INFO", $if );
     if ($sysinfo->{'__RETURN_CODE__'} ne '0') {
-	$self->{'ERROR'} = $sysinfo->{'__RETURN_CODE__'};
-	return undef;
+  	  $self->{ERROR} = $sysinfo->{'__RETURN_CODE__'};
+	    return {};
     }
-
     my $pos = 0;
     my $info = {};
+    my $rfcsi = $sysinfo->{'RFCSI_EXPORT'};
     map {
-	$info->{$_->{'NAME'}} = 
-	    substr($sysinfo->{'RFCSI_EXPORT'},$pos, $_->{'LEN'});
-	$pos += $_->{'LEN'}
-    } @SYSINFO;
-
-
+	  $info->{$_->{'NAME'}} = substr($rfcsi,$pos, $_->{'LEN'});
+	  $pos += $_->{'LEN'}
+            } @SYSINFO;
     $self->{'RETURN'} = $return;
     $self->{'SYSINFO'} = $info;
   }
-
   return  $self->{'SYSINFO'};
-
 }
 
 
@@ -671,27 +755,19 @@ sub callrfc {
   die "SAP Connection Not Open for RFC call "
      if ! is_connected( $self );
 
-#  print STDERR "IFACE: ".Dumper($iface->iface );
-
   my $result = MyRfcCallReceive( $self->{'HANDLE'}, $iface->name, $iface->iface );
-
-  if ($DEBUG){
-      use  Data::Dumper;
-      print "RFC CALL: ", $iface->name(), " RETURN IS: ".Dumper( $result )." \n";
-  };
   
   if ( $result->{'__RETURN_CODE__'} ne "0" ){
       $self->{'ERROR'} = $result->{'__RETURN_CODE__'};
       die "RFC call failed: ".$result->{'__RETURN_CODE__'};
   } else {
       map {
-	  $_->intvalue( intoext( $_, $result->{$_->name()} ) )
-	  } ( $iface->parms() );
+      	  $_->intvalue( intoext( $_, $result->{$_->name()} ) )
+	          } ( $iface->parms() );
       $iface->emptyTables();
       map { my $tab = $_;
-	    map { $tab->addRow( $_ ) }
-	        ( @{$result->{$tab->name()}} )
-	} ( $iface->tabs() );
+	      map { $tab->addRow( $_ ) } ( @{$result->{$tab->name()}} )
+	           } ( $iface->tabs() );
   }
 }
 
@@ -741,22 +817,18 @@ sub close {
 
 # Return error message
 sub error {
-
   my $self = shift;
   my $msg = $self->{'ERROR'};
   $msg =~ s/^.+MESSAGE\s*//;
   return $msg;
-  
 }
 
 
 # Return error detailed
 sub errorKeys {
-
   my $self = shift;
   my $msg = { split(/\t/, $self->{'ERROR'}) };
   return $msg;
-  
 }
 
 
@@ -1003,6 +1075,23 @@ executable that comes with all SAP R/3 server implementations:
 
   This can be used to track the status of the callback success, and relay
   this information to the other transaction control callback (TID_*).
+
+
+=head2 allow_start_program("; separated list of programs")
+
+  With that the Method it is possible to launch a program. This feature is
+  hevealy used by SAP DMS (Document Management System) which sends and
+  receives Files from and to the client.
+
+
+=head2 CACHING
+  
+  Activate the caching of Interface and Structure definitions (generated via SAP::Rfc->discover() and SAP::Rfc->structure()).  The definitions are serialized/deserialised using Data::Dumper, which has the effect of speeding up the startup times of scripts (you nolonger have to the SAP system everytime you need get a reference to the cached definitions).  If you enable caching then you need to be careful about differences in byte order between systems you communicate with (same definitions are retrieved regardless of system connected to), and the potential differences in interface/structure definitions between your systems (perhaps because of release etc.).
+
+  $SAP::Rfc::USECACHE = 1;
+
+  The default cache is set to ".rfc_cache/".  If you don't like the default then you need to change this by setting $SAP::Rfc::CACHE to a directory of your choice.
+
 
 
 =head1 AUTHOR

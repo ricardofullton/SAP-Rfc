@@ -27,15 +27,17 @@ use constant RFCTYPE_INT1  => 10;
 # Valid parameters
 my $IFACE_VALID = {
    NAME => 1,
+   ENDIAN => 1,
    HANDLER => 1,
    PARAMETERS => 1,
    TABLES => 1,
    EXCEPTIONS => 1,
    SYSINFO => 1,
+   RFCINTTYP => 1,
    LINTTYP => 1
 };
 
-$VERSION = '1.31';
+$VERSION = '1.36';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -110,6 +112,7 @@ sub new {
 
   @_ = ('NAME' => @_) if scalar @_ == 1;
   my $self = {
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
   	PARAMETERS => {},
   	TABLES => {},
   	EXCEPTIONS => {},
@@ -131,31 +134,25 @@ sub new {
 
 # get the name
 sub name {
-
   my $self = shift;
   return $self->{NAME};
-
 }
 
 
 # get the sysinfo of the current connection 
 # only relevent for registered RFC
 sub sysinfo {
-
   my $self = shift;
   return $self->{'SYSINFO'};
-
 }
 
 
 # set/get the handler
 sub handler {
-
   my $self = shift;
   $self->{'HANDLER'} = shift @_ 
        if scalar @_ == 1;
   return $self->{'HANDLER'};
-
 }
 
 
@@ -174,44 +171,36 @@ sub addParm {
   };
 
   return $self->{PARAMETERS}->{$parm->name()} = $parm;
-
 }
 
 
 # Access the export parameters
 sub parm {
-
   my $self = shift;
   die "No parameter name supplied for interface" if ! @_;
   my $parm = uc(shift);
   die "Parameter $parm Does not exist in interface !"
            if ! exists $self->{PARAMETERS}->{$parm};
   return $self->{PARAMETERS}->{$parm};
-
 }
 
 
 # Return the parameter list
 sub parms {
-
   my $self = shift;
   return sort { $a->name() cmp $b->name() } values %{$self->{PARAMETERS}};
-
 }
 
 
 # Return the parameter list excluding empty export parameters
 sub parms_noempty {
-
   my $self = shift;
   return sort { $a->name() cmp $b->name() } grep { ! ($_->type() == RFCEXPORT && ! $_->changed()) }values %{$self->{PARAMETERS}};
-
 }
 
 
 # Add an Table Object
 sub addTab {
-
   my $self = shift;
   die "No Table supplied for interface !" if ! @_;
   my $table;
@@ -223,99 +212,77 @@ sub addTab {
       $table = SAP::Tab->new( @_ );
   };
   return $self->{TABLES}->{$table->name()} = $table;
-
 }
 
 
 # Is this a Table parameter
 sub isTab {
-
   my $self = shift;
   my $table = uc(shift);
      return exists $self->{TABLES}->{ $table } ? 1 : undef;
-
 }
 
 
 # Access the Tables
 sub tab {
-
   my $self = shift;
   die "No Table name supplied for interface" if ! @_;
   my $table = uc(shift);
   die "Table $table Does not exist in interface  !"
      if ! exists $self->{TABLES}->{ $table };
   return $self->{TABLES}->{ $table };
-
 }
 
 
 # Return the Table list
 sub tabs {
-
   my $self = shift;
   return sort { $a->name() cmp $b->name() } values %{$self->{TABLES}};
-
 }
 
 
 # Empty The contents of all tables in an interface
 sub emptyTables {
-
   my $self = shift;
-  map {
-      $_->empty();
-  } ( $self->tabs() );
+  map { $_->empty(); } ( $self->tabs() );
   return 1;
-
 }
 
 
 
 # Add an Exception code
 sub addException {
-
   my $self = shift;
   die "No exception parameter supplied to Interface !" if ! @_;
   my $exception = uc(shift);
   return $self->{EXCEPTIONS}->{$exception} = $exception;
-
 }
 
 
 # Check Exception Exists
 sub exception {
-
   my $self = shift;
   die "No Exception parameter name supplied for interface" if ! @_;
   my $exception = uc(shift);
   return ( ! exists $self->{EXCEPTIONS}->{ $exception } ) ? $exception : undef;
-
 }
 
 
 # Return the Exception parameter list
 sub exceptions {
-
   my $self = shift;
   return sort keys %{$self->{EXCEPTIONS}};
-
 }
 
 
 # Reset the entire interface
 sub reset {
-
   my $self = shift;
   #  Reset all the tables
   emptyTables( $self );
   # Reset all parameters
-  map {
-        $_->value( $_->default );
-        } ( parms() );
-
+  map { $_->value( $_->default ); } ( parms() );
   return 1;
-
 }
 
 
@@ -328,13 +295,9 @@ sub iface {
     my $iface = {};
     map { $iface->{$_->name()} = { 'TYPE' => $_->type(),
 	                           'INTYPE' => $_->intype(),
-#				   'VALUE' => $_->intvalue(),
                                    'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : $_->intvalue()),
-#				   'LEN' => ($_->intype() == RFCTYPE_CHAR ? length($_->intvalue()) : $_->leng()) }
                                    'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
-
       } ( $flag ? $self->parms : $self->parms_noempty() );
-
 
     map { $iface->{$_->name()} = { 'TYPE' => RFCTABLE,
 	                           'INTYPE' => $_->intype(),
@@ -342,16 +305,11 @@ sub iface {
 				   'LEN' => $_->leng() };
       } ( $self->tabs() );
 
-#    use Data::Dumper;
-#    warn "This is the IFACE: ".Dumper($iface)."\n";
     if ($flag){
       $iface->{'__HANDLER__'} = $self->{'HANDLER'};
       $iface->{'__SELF__'} = $self;
     }
-
     return $iface;
-
-
 }
 
 
@@ -455,7 +413,7 @@ Generally you would not create one of these manually as it is far easier to use 
 
 =head2 tabs()
 
-  Return a list of table objects for the SAPP::Iface object.
+  Return a list of table objects for the SAP::Iface object.
 
 =head2 emptyTables()
 
@@ -528,6 +486,8 @@ use constant RFCTYPE_INT1  => 10;
 my $TAB_VALID = {
    VALUE => 1,
    NAME => 1,
+   ENDIAN => 1,
+   RFCINTTYP => 1,
    INTYPE => 1,
    LEN => 1,
    STRUCTURE => 1
@@ -551,10 +511,10 @@ my $TAB_VALTYPE = {
 
 # Construct a new SAP::Table object.
 sub new {
-
   my $proto = shift;
   my $class = ref($proto) || $proto;
   my $self = {
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
      VALUE => [],
      INTYPE => RFCTYPE_BYTE,
      @_
@@ -570,13 +530,11 @@ sub new {
 # create the object and return it
   bless ($self, $class);
   return $self;
-
 }
 
 
 # Set/get the table rows - pass a reference to a anon array
 sub rows {
-
   my $self = shift;
   if (@_){
     $self->{'VALUE'} = shift;
@@ -585,8 +543,8 @@ sub rows {
     foreach my $row ( @{$self->{'VALUE'}} ){
       if (ref($row) eq 'HASH'){
         map { $str->$_($row->{$_}) } keys %{$row};
-	$row = $str->value;
-	$str->value("");
+	      $row = $str->value;
+	      $str->value("");
       }
       push(@rows, $row);
     }
@@ -599,7 +557,6 @@ sub rows {
 
 # retrieve the rows in hashes based on the field names
 sub hashRows {
-
   my $self = shift;
   my @rows = ();
   foreach ( map{ pack("A".$self->leng(),$_) } (@{$self->{VALUE}}) ){
@@ -612,7 +569,6 @@ sub hashRows {
 
 # Return the next available row from a table
 sub nextRow {
-
   my $self = shift;
   my $row = shift  @{$self->{VALUE}};
   if ( $row ) {
@@ -621,85 +577,68 @@ sub nextRow {
   } else {
     return undef;
   }
-
 }
 
 
 # Set/get the structure parameter
 sub structure {
-
   my $self = shift;
   $self->{STRUCTURE} = shift if @_;
   return $self->{STRUCTURE};
-
 }
 
 
 # add a row
 sub addRow {
-
   my $self = shift;
   if (@_){
     my $row = shift;
-    my $str = $self->structure();
     if (ref($row) eq 'HASH'){
-      map { $str->$_($row->{$_}) } keys %{$row};
-      $row = $str->value;
-      $str->value("");
+      map { $self->structure->$_($row->{$_}) } keys %{$row};
+      $row = $self->structure->value;
+      $self->structure->value("");
     }
     push(@{$self->{VALUE}}, $row);
   }
-
 }
 
 
 # Delete all rows in the table
 sub empty {
-
   my $self = shift;
   $self->rows( [ ] );
   return 1;
-
 }
 
 # Get the table name
 sub name {
-
   my $self = shift;
   return  $self->{NAME};
-
 }
 
 
 # Set/get the value of type
 sub intype {
-
   my $self = shift;
   $self->{INTYPE} = shift if @_;
   die "Table Type not valid $self->{INTYPE} !"
      if ! exists $TAB_VALTYPE->{$self->{INTYPE}};
   return $self->{INTYPE};
-
 }
 
 
 # Set/get the table length
 sub leng {
-
   my $self = shift;
   $self->{LEN} = shift if @_;
   return $self->{LEN};
-
 }
 
 
 # Get the number of rows
 sub rowCount {
-
   my $self = shift;
-#  return  $#{$self->{VALUE}} + 1;
   return scalar @{$self->{VALUE}};
-
 }
 
 
@@ -822,6 +761,7 @@ use constant RFCTYPE_INT1  => 10;
 my $PARMS_VALID = {
    RFCINTTYP => 1,
    NAME => 1,
+   ENDIAN => 1,
    HANDLER => 1,
    INTYPE => 1,
    LEN => 1,
@@ -864,6 +804,7 @@ sub new {
   my $class = ref($proto) || $proto;
   my $self = {
      INTYPE => RFCTYPE_CHAR,
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
      DEFAULT => undef,
      CHANGED => 0,
      VALUE => '',
@@ -890,43 +831,35 @@ sub new {
 
 # Set/get the value of type
 sub type {
-
   my $self = shift;
   $self->{TYPE} = shift if @_;
   return $self->{TYPE};
-
 }
 
 
 # get the changed flag
 sub changed {
-
   my $self = shift;
   $self->{CHANGED} = 1 if @_;
   return $self->{'CHANGED'};
-
 }
 
 
 # Set/get the value of decimals
 sub decimals {
-
   my $self = shift;
   $self->{DECIMALS} = shift if @_;
   return $self->{DECIMALS};
-
 }
 
 
 # Set/get the value ofinternal type
 sub intype {
-
   my $self = shift;
   $self->{INTYPE} = shift if @_;
   die "Parameter INTYPE not valid $self->{INTYPE} !"
      if ! exists $PARMS_VALTYPE->{$self->{INTYPE}};
   return $self->{INTYPE};
-
 }
 
 
@@ -934,7 +867,6 @@ sub intype {
 sub value {
 
   my $self = shift;
-#  print STDERR "setting value: ".$self->name()." to ", @_,"\n";
 
   #  there is a value
   if (@_){
@@ -979,41 +911,35 @@ sub value {
 sub intvalue {
 
   my $self = shift;
-  $self->{VALUE} = shift if @_;
+  # sort out structured parameters
+  my $str = $self->structure();
+  $self->{'VALUE'} = $str->value if $str;
+
+  # this overrides
+  $self->{'VALUE'} = shift if @_;
 
 
-#  print STDERR "PARM: ".$self->name() ." type ".$self->intype()." is: ".$self->{'VALUE'}."\n";
 # Sort out theinternal format
 #  if ( $self->{VALUE}){
   if ( defined $self->{'VALUE'} && $self->{'VALUE'} ne ''){
       if ( $self->intype() == RFCTYPE_BCD){
-	  return pack("H*", $self->{VALUE});
+	      return pack("H*", $self->{VALUE});
       } elsif ( $self->intype() == RFCTYPE_FLOAT){
-	  return pack("d", $self->{VALUE});
+	      return pack("d", $self->{VALUE});
       } elsif ( $self->intype() == RFCTYPE_INT){
-#	  return pack("I4", int($self->{VALUE}));
-	  #return pack("N", int($self->{VALUE}));
-#	  return pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
-           
-#	  warn "byte order is: $Config{byteorder} - $self->{VALUE} \n";
-#  ( ( join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12") ? "LIT" : "BIG" )
-	  #return pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
-	  return pack(((join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12") ? "l" : "N" ), int($self->{VALUE}));
+	      return pack(($self->{'RFCINTTYP'} eq "BIG" ? "l" : "V" ), int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT2){
-	  return pack("S", int($self->{VALUE}));
+	      return pack("S", int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT1){
       # get the last byte of the integer
-	  return (unpack("A A A A", int($self->{VALUE})))[-1];
+	      return (unpack("A A A A", int($self->{VALUE})))[-1];
       } else {
-#          print STDERR " length is: ".$self->leng()." value is: ".$self->{'VALUE'}."\n";
-	  return pack("A".$self->leng(),$self->{VALUE});
+	      return pack("A".$self->leng(),$self->{VALUE});
       };
   } else {
       if ( $self->intype() == RFCTYPE_CHAR ){
-#        $self->leng( 1 );
         return " ";
       } else {
-#        $self->leng( 0 );
         return "";
       };
   };
@@ -1023,27 +949,22 @@ sub intvalue {
 
 # Set/get the parameter default
 sub default {
-
   my $self = shift;
   $self->{DEFAULT} = shift if @_;
   return $self->{DEFAULT};
-
 }
 
 
 # Set/get the parameter structure
 sub structure {
-
   my $self = shift;
   $self->{STRUCTURE} = shift if @_;
   return $self->{STRUCTURE};
-
 }
 
 
 # Set/get the parameter length
 sub leng {
-
   my $self = shift;
   if ( $self->intype() == RFCTYPE_FLOAT){
       $self->{LEN} = 8;
@@ -1057,16 +978,13 @@ sub leng {
       $self->{LEN} = shift if @_;
   };
   return $self->{LEN};
-
 }
 
 
 # get the name
 sub name {
-
   my $self = shift;
   return $self->{NAME};
-
 }
 
 
@@ -1199,6 +1117,7 @@ my $VALID = {
 # Valid Field parameters
 my $FIELDVALID = {
    NAME => 1,
+   ENDIAN => 1,
    INTYPE => 1,
    DECIMALS => 1,
    LEN => 1,
@@ -1211,6 +1130,13 @@ my $FIELDVALID = {
 # Valid data types for fields
 my $VALCHARTYPE = {
    C => RFCTYPE_CHAR,
+
+   # these shouldnt be here ...
+   L => RFCTYPE_CHAR,
+   G => RFCTYPE_CHAR,
+   Y => RFCTYPE_CHAR,
+
+
    X => RFCTYPE_BYTE,
    B => RFCTYPE_INT1,  # This is a place holder for a 1 byte int <=255+
    S => RFCTYPE_INT,
@@ -1260,6 +1186,7 @@ sub new {
   my $proto = shift;
   my $class = ref($proto) || $proto;
   my $self = {
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
      FIELDS => {},
      @_
   };
@@ -1295,11 +1222,11 @@ sub addField {
   die "Structure INTYPE not supplied!" if ! exists $field{INTYPE};
   if ( $field{INTYPE} =~ /[A-Z]/ ){
       die "Structure Type not valid $field{INTYPE} !" 
-	  if ! exists $VALCHARTYPE->{$field{INTYPE}};
+	      if ! exists $VALCHARTYPE->{$field{INTYPE}};
       $field{INTYPE} = $VALCHARTYPE->{$field{INTYPE}};
   } else {
       die "Structure Type not valid $field{INTYPE} in $self->{NAME} - $field{NAME} - length $field{LEN} !" 
-	  if ! exists $VALTYPE->{$field{INTYPE}};
+	      if ! exists $VALTYPE->{$field{INTYPE}};
   };
   $field{POSITION} = ( scalar keys %{$self->{FIELDS}} ) + 1;
 
@@ -1311,20 +1238,17 @@ sub addField {
 
 # Delete a field from the structure
 sub deleteField {
-
   my $self = shift;
   my $field = shift;
   die "Structure field does not exist: $field "
      if ! exists $self->{FIELDS}->{uc($field)};
   delete $self->{FIELDS}->{uc($field)};
   return $field;
-
 }
 
 
 # Set/get the field value and update the overall structure value
 sub fieldValue {
-
   my $self = shift;
   my $field = shift;
   $field = ($self->fields)[$field] if $field =~ /^\d+$/;
@@ -1337,46 +1261,37 @@ sub fieldValue {
   } 
 
   return $field->{VALUE};
-
 }
 
 
 # get the field name by position
 sub fieldName {
-
   my $self = shift;
   my $field = shift;
-#  print "Number: $field \n";
   die "Structure field does not exist by array position: $field "
      if ! ($self->fields)[$field - 1];
   return ($self->fields)[$field - 1 ];
-
 }
 
 
 # get the name
 sub name {
-
   my $self = shift;
   return $self->{NAME};
-
 }
 
 
 # return the current set of field names
 sub fields {
-
   my $self = shift;
   return  sort { $self->{FIELDS}->{$a}->{POSITION} <=>
 		  $self->{FIELDS}->{$b}->{POSITION} }
 		  keys %{$self->{FIELDS}};
-
 }
 
 
 # Set/get the parameter value
 sub value {
-
   my $self = shift;
   # an empty value maybe passed
   if ( scalar @_ > 0 ){
@@ -1386,7 +1301,12 @@ sub value {
     _pack_structure( $self ) if ! exists $self->{PACKED};
   }
   return $self->{VALUE};
+}
 
+
+sub hash {
+  my $self = shift;
+  return  { map {$_ => $self->$_() } ( $self->fields ) };
 }
 
 
@@ -1404,30 +1324,23 @@ sub _pack_structure {
 	#  Transform various packed dta types
         if ( $fld->{INTYPE} eq RFCTYPE_INT ){
 	# Long INT4
-#          $fld->{VALUE} = pack("I4",$fld->{VALUE});
-	  $fld->{VALUE} ||= 0;
-          #$fld->{VALUE} = pack("N",$fld->{VALUE});
-	  #$fld->{VALUE} = pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
-	  #$fld->{VALUE} = pack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
-	  $fld->{VALUE} = pack(($self->{'LINTTYP'} eq 'BIG' ? "N" : "l"),
-	                       int($fld->{VALUE}));
+      	  $fld->{VALUE} ||= 0;
+	  $fld->{VALUE} = pack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "V"), int($fld->{VALUE}));
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2
-	  $fld->{VALUE} ||= 0;
+	        $fld->{VALUE} ||= 0;
           $fld->{VALUE} = pack("S",$fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT1 ){
 	# Short INT1
           $fld->{VALUE} = chr( int( $fld->{VALUE} ) );
         } elsif ( $fld->{INTYPE} eq RFCTYPE_NUM ){
 	# NUMC
-#          $fld->{VALUE} = int($fld->{VALUE});
 # what if it is num char ?
           $fld->{VALUE} = "0" unless exists $fld->{VALUE};
-	  if ( $fld->{VALUE} == 0 || $fld->{VALUE} =~ /^[0-9]+$/ ){
-	    $fld->{VALUE} = 
-	      sprintf("%0".$fld->{LEN}."d", int($fld->{VALUE}));
-	  };
-#          $fld->{VALUE} = int($fld->{VALUE});
+	        if ( $fld->{VALUE} == 0 || $fld->{VALUE} =~ /^[0-9]+$/ ){
+	          $fld->{VALUE} = 
+	            sprintf("%0".$fld->{LEN}."d", int($fld->{VALUE}));
+	        };
         } elsif ( $fld->{INTYPE} eq RFCTYPE_DATE ){
 	# Date
           $fld->{VALUE} = '00000000' if ! $fld->{VALUE};
@@ -1436,29 +1349,20 @@ sub _pack_structure {
           $fld->{VALUE} = '000000' if ! $fld->{VALUE};
         } elsif ( $fld->{INTYPE} eq RFCTYPE_FLOAT ){
 	# Float
-	  $fld->{VALUE} ||= 0;
+	        $fld->{VALUE} ||= 0;
           $fld->{VALUE} = pack("d",$fld->{VALUE});
-#        } elsif ( $fld->{INTYPE} eq RFCTYPE_BCD and $fld->{VALUE} ){
         } elsif ( $fld->{INTYPE} eq RFCTYPE_BCD ){
 	#  All types of BCD
-	  $fld->{VALUE} =~ s/^\s+([ -+]\d.*)$/$1/;
-	  $fld->{VALUE} ||= 0;
-	  #print STDERR "SPRINTF: ".sprintf("%0".int(($fld->{LEN}*2) - 1).".".$fld->{DECIMALS}."f", $fld->{VALUE})."\n";
-	  $fld->{VALUE} = sprintf("%0".int(($fld->{LEN}*2) + 1).".".$fld->{DECIMALS}."f", $fld->{VALUE});
-	  $fld->{VALUE} =~ s/\.//g;
-	  #print STDERR "FIELD: ".$self->{NAME}." = ".$fld->{VALUE}."\n";
-	  @flds = split(//, $fld->{VALUE});
-	  shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
-	  #print STDERR "FIELD: ", $fld->{NAME}, " LEN: ", $fld->{LEN}, " VAL: ", join('', @flds), " DEC: ", $fld->{DECIMALS}, "\n";
-	  $fld->{VALUE} = join('', @flds);
-	  #print STDERR "VALUE: ".$fld->{VALUE}."\n";
+	        $fld->{VALUE} =~ s/^\s+([ -+]\d.*)$/$1/;
+	        $fld->{VALUE} ||= 0;
+	        $fld->{VALUE} = sprintf("%0".int(($fld->{LEN}*2) + 1).".".$fld->{DECIMALS}."f", $fld->{VALUE});
+	        $fld->{VALUE} =~ s/\.//g;
+	        @flds = split(//, $fld->{VALUE});
+	        shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
+	        $fld->{VALUE} = join('', @flds);
           $fld->{VALUE} = pack("H*",$fld->{VALUE});
-	  #print STDERR "VALUE: ".unpack("H*",$fld->{VALUE})."\n";
-
         }
-	$fld->{VALUE} ||= "";
-#	print "FIELD: ", $fld->{NAME}, "  VAL: ", $fld->{VALUE}, "\n";
-      
+	      $fld->{VALUE} ||= "";
       } (0..$#fields);
 
   # find the length of a row
@@ -1467,11 +1371,10 @@ sub _pack_structure {
   my $format = "";
   map {
         my $fld = $self->{FIELDS}->{$fields[$_]};
-	$format = join(" ","A".($lastoff - $fld->{OFFSET}), $format);
+	      $format = join(" ","A".($lastoff - $fld->{OFFSET}), $format);
         $lastoff = int($fld->{OFFSET});
       } reverse (0..$#fields);
 
-  #my $format = &_format( $self );
   $self->{VALUE} = 
     pack( $format, ( map { $self->{FIELDS}->{$_}->{VALUE} } ( @fields ) ) );
   $self->{PACKED} = 1;
@@ -1483,27 +1386,17 @@ sub _pack_structure {
 sub _unpack_structure {
 
   my $self = shift;
-  #my $format = &_format( $self );
-  #my @fieldvalues = unpack($format, $self->{VALUE});
-  #print "AFTER AFTER HEX:", unpack("H*", $self->{VALUE}), "\n";
   my @fields = $self->fields($self);
-#  print "SELF IS: $self \n";
-#  map { print "val: $_ \n" } @fields;
   my $offset = 0;
   map {
         my $fld = $self->{FIELDS}->{$fields[$_]};
         $offset = int($fld->{OFFSET}) if exists $fld->{OFFSET};
-#	print "Field: ", $fld->{NAME}, " OFF: $offset TYPE: $fld->{INTYPE} - ROW: ", $self->{VALUE}, "\n";
         $fld->{VALUE} = substr($self->{VALUE}, $offset, int($fld->{LEN}));
 	#  Transform various packed dta types
         if ( $fld->{INTYPE} eq RFCTYPE_INT ){
 	# Long INT4
-#          $fld->{VALUE} = unpack("I4",$fld->{VALUE});
           $fld->{VALUE} = 
-	     # unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "l"),
-	     #unpack((($Config{'byteorder'} eq '4321' or $Config{'byteorder'} eq '87654321')  ? "N" : "l"),
-	     unpack((($self->{'LINTTYP'} eq 'BIG')  ? "N" : "l"),
-	            $fld->{VALUE});
+	     unpack((($self->{'RFCINTTYP'} eq 'BIG')  ? "N" : "V"), $fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2
           $fld->{VALUE} = unpack("S",$fld->{VALUE});
@@ -1518,20 +1411,17 @@ sub _unpack_structure {
           $fld->{VALUE} = unpack("d",$fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_BCD and $fld->{VALUE} ){
 	#  All types of BCD
-	  my @flds = split(//, unpack("H".$fld->{LEN}*2,$fld->{VALUE}));
-	  if ( $flds[$#flds] eq 'd' ){
-	    splice( @flds,0,0,'-');
-	  #} else {
-	  #  splice( @flds,0,0,'+');
-	  }
-	  pop( @flds );
-#	  print "FIELD: ", $fld->{NAME}, " VAL: ", join('', @flds), "DEC: ", $fld->{DECIMALS}, "\n";
-	  splice(@flds,$#flds - ( $fld->{DECIMALS} - 1 ),0,'.')
+	        my @flds = split(//, unpack("H".$fld->{LEN}*2,$fld->{VALUE}));
+	        if ( $flds[$#flds] eq 'd' ){
+	          splice( @flds,0,0,'-');
+	        }
+	        pop( @flds );
+	        splice(@flds,$#flds - ( $fld->{DECIMALS} - 1 ),0,'.')
 	                if $fld->{DECIMALS} > 0;
-	  $fld->{VALUE} = join('', @flds);
-        }
+	        $fld->{VALUE} = join('', @flds);
+       }
         $offset += int($fld->{LEN}) if ! exists $fld->{OFFSET};
-      } (0..$#fields);
+     } (0..$#fields);
 
 }
 
@@ -1605,6 +1495,12 @@ hash key values ( see SYNOPSIS ).  The value of each field can either be accesse
   Set/Get the value of the whole structure.
 
 
+=head2 hash()
+
+  $val = $str->hash();
+  Get a hash of the values of the whole structure (current value).
+
+
 =head2 fieldValue()
 
   $fvalue = $str->fieldValue(field1,
@@ -1615,7 +1511,7 @@ hash key values ( see SYNOPSIS ).  The value of each field can either be accesse
 
 =head2 fields()
 
-  @f = &$struct->fields();
+  @f = $struct->fields();
   Return an array of the fields of a structure sorted in positional
   order.
 

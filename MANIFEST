@@ -3,6 +3,7 @@ Artistic
 Changes
 MANIFEST
 Makefile.PL
+Idoc.pm
 Rfc.pm
 Rfc.xs
 Iface.pm
@@ -17,3 +18,4 @@ examples/reg.pl
 examples/lib/Apache/SAPSOAP.pm
 examples/lib/Apache/SAPSOAPServer.pm
 examples/lib/SAP/SOAP.pm
+META.yml                                 Module meta-data (added by MakeMaker)

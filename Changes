@@ -221,3 +221,21 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.32 Sun Jun 20 20:22:16 NZST 2004
  - and in $rfc->errorKeys() for Adam Trickett so that he can get all
  the RFC error trace file values.
+
+
+1.33 Fri Jun 25 10:57:04 NZST 2004
+ - fix problem where structured parameter values are not recalculated 
+   after they have been set via structure - just prior to the RFC call.
+
+1.34 Fri Jul 16 01:14:17 NZST 2004
+ - fix some Endian issues in structures
+
+1.35 Thu Sep 30 17:09:55 BST 2004
+ - add AllowStartProgram()
+ - Paul-Joseph de Werk supplied a fix for compiler errors on HP-UX 11.00 - 64
+
+1.36 Thu Nov  4 16:24:31 GMT 2004
+ - load warnings for aix fixed
+ - add structure, and interface caching to speed up startup for discover()
+   of function modules etc
+ - and a massive thanks goes to Hans Harder for finally making some sense of the Endian issues.

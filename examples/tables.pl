@@ -13,12 +13,12 @@ print "SAP::Iface VERSION: $SAP::Iface::VERSION \n";
 
 
 my $rfc = new SAP::Rfc(
-              ASHOST   => 'kogut',
+              ASHOST   => 'seahorse',
               USER     => 'DEVELOPER',
-              PASSWD   => '19920706',
+              PASSWD   => 'developer',
               LANG     => 'EN',
-              CLIENT   => '000',
-              SYSNR    => '18',
+              CLIENT   => '010',
+              SYSNR    => '00',
               TRACE    => '1' );
 
 

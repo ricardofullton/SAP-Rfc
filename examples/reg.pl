@@ -31,9 +31,9 @@ print "EXCEPTION: ".$SAP::Rfc::EXCEPTION_ONLY ."\n";
 
 my $rfc = new SAP::Rfc(
               TPNAME   => 'wibble.rfcexec',
-              #GWHOST   => '172.22.50.1',
+              GWHOST   => '172.22.50.1',
               #GWHOST   => '172.22.50.76',
-              GWHOST   => 'seahorse.local.net',
+              i#GWHOST   => 'seahorse.local.net',
               GWSERV   => '3300',
               TRACE    => '1' );
 
@@ -104,8 +104,9 @@ sub do_remote_pipe {
   warn "Running do_remote_pipe...\n";
   my $ls = $iface->COMMAND;
   $iface->PIPEDATA( [ map { pack("A80",$_) } split(/\n/, `$ls`) ]);
-  warn "   Data: ".Dumper($iface->PIPEDATA);
+  #warn "   Data: ".Dumper($iface->PIPEDATA);
   #die "MY_CUSTOM_ERROR with some other text";
+  warn "called $$\n";
   return 1;
 
 }

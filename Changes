@@ -196,3 +196,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - added correct handling of a gateway connection error, so that the accept() loop
    exits.  An error message is reported, and can be accessed via $rfc->error().
 
+1.27 Fri Apr 23 16:38:06 NZST 2004
+ - remove bad double-slash comments from C code, and extraneous
+ fprintf()s

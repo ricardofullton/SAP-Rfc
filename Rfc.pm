@@ -7,7 +7,7 @@ require 5.005;
 require DynaLoader;
 require Exporter;
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.26';
+$VERSION = '1.27';
 @ISA = qw(DynaLoader Exporter);
 
 my $EXCEPTION_ONLY = 0;

@@ -586,8 +586,6 @@ void get_attributes(RFC_HANDLE rfc_handle, HV* hv_sysinfo)
   rc = RfcGetAttributes(rfc_handle, &rfc_attributes);
   if (rc != RFC_OK)
     return;
-  //if (rc)
-  //  rfc_error("RfcGetAttributes");
 
   hv_store(hv_sysinfo, "dest", 4, newSVpv(rfc_attributes.dest, strlen(rfc_attributes.dest)), 0);
   hv_store(hv_sysinfo, "localhost", 9, newSVpv(rfc_attributes.own_host, strlen(rfc_attributes.own_host)), 0);

@@ -239,3 +239,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - add structure, and interface caching to speed up startup for discover()
    of function modules etc
  - and a massive thanks goes to Hans Harder for finally making some sense of the Endian issues.
+
+1.37 Tue Jul  5 13:58:44 BST 2005
+ - fix bug with BCD value handling with no decimal places - thanks to Dirk Lachowski

@@ -9,7 +9,7 @@ require Exporter;
 use Data::Dumper;
 
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.36';
+$VERSION = '1.37';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -582,7 +582,7 @@ sub lookupIdoc {
 	  eval($idoc);
 	  return $idoc1;
   }
-  my $idoc = new SAP::Idoc( 'NAME' => $idoc, 
+  $idoc = new SAP::Idoc( 'NAME' => $idoc, 
                             'SINGLE' => $self->discover('IDOC_INBOUND_SINGLE'),
                             'MANDT' => $self->{'CLIENT'},
 							);

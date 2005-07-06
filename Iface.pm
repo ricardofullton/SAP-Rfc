@@ -37,7 +37,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.36';
+$VERSION = '1.37';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -1355,11 +1355,13 @@ sub _pack_structure {
 	#  All types of BCD
 	        $fld->{VALUE} =~ s/^\s+([ -+]\d.*)$/$1/;
 	        $fld->{VALUE} ||= 0;
-	        $fld->{VALUE} = sprintf("%0".int(($fld->{LEN}*2) + 1).".".$fld->{DECIMALS}."f", $fld->{VALUE});
+	        $fld->{VALUE} = sprintf("%0".int(($fld->{LEN}*2) + ($fld->{DECIMALS} > 1 ? 1:0)).".".$fld->{DECIMALS}."f", $fld->{VALUE});
+	        #warn "MASK: %0".int(($fld->{LEN}*2) + ($fld->{DECIMALS} > 1 ? 1:0)).".".$fld->{DECIMALS}."f\n";
 	        $fld->{VALUE} =~ s/\.//g;
 	        @flds = split(//, $fld->{VALUE});
 	        shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
 	        $fld->{VALUE} = join('', @flds);
+          #warn "$fld->{NAME}: $fld->{LEN}/$fld->{DECIMALS} - $fld->{VALUE} lval:".length($fld->{VALUE})."\n";
           $fld->{VALUE} = pack("H*",$fld->{VALUE});
         }
 	      $fld->{VALUE} ||= "";

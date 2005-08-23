@@ -37,7 +37,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.37';
+$VERSION = '1.38';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -877,7 +877,8 @@ sub value {
       my $str = $self->structure();
       map { $str->$_($self->{'VALUE'}->{$_}) } keys %{$self->{'VALUE'}};
       $self->{'VALUE'} = $str->value;
-      $str->value("");
+# don't know why I did this
+#      $str->value("");
       return $self->{'VALUE'};
     } else {
       # no hash - but is a structure

@@ -9,7 +9,7 @@ require Exporter;
 use Data::Dumper;
 
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.37';
+$VERSION = '1.38';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -835,7 +835,7 @@ sub errorKeys {
 
 =head1 NAME
 
-SAP::Rfc - RFC Function calls against an SAP R/3 System
+SAP::Rfc - SAP RFC - RFC Function calls against an SAP R/3 System
 
 =head1 SYNOPSIS
 

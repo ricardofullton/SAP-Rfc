@@ -242,3 +242,9 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.37 Tue Jul  5 13:58:44 BST 2005
  - fix bug with BCD value handling with no decimal places - thanks to Dirk Lachowski
+
+1.38 Mon Aug 22 12:41:21 BST 2005
+ - fixed bug to do with parameters (with structures) getting the wrong value
+   Thanks to Martin Kaemmerling
+
+

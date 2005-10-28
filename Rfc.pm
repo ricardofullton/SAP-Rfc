@@ -9,7 +9,7 @@ require Exporter;
 use Data::Dumper;
 
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.38';
+$VERSION = '1.39';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -445,7 +445,9 @@ sub discover {
       $name =~ s/\s//g;
       $tabname =~ s/\s//g;
       $field =~ s/\s//g;
-      $intlen = int($intlen);
+#      $intlen = int($intlen);
+#     support UNICODE
+      $intlen = ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen));
       $decs = int($decs);
       # if the character value default is in quotes - remove quotes
       if ($default =~ /^\'(.*?)\'\s*$/){
@@ -664,8 +666,11 @@ sub structure {
 		  "A30 A30 A4 A6 A6 A6 A" : "A10 A10 A4 A6 A6 A6 A", $_ );
       $struct->addField( 
 			 NAME     => $field,
-			 LEN      => $intlen,
-			 OFFSET   => $off,
+#			 LEN      => $intlen,
+#			 add UNICODE Support
+       LEN      => ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen) ),
+#			 OFFSET   => $off,
+       OFFSET   => ( $self->{'UNICODE'} ? int($off)/2 : int($off) ),
 			 DECIMALS => $decs,
 			 INTYPE   => $exid
 			 )
@@ -739,6 +744,9 @@ sub sapinfo {
             } @SYSINFO;
     $self->{'RETURN'} = $return;
     $self->{'SYSINFO'} = $info;
+
+#   add UNICODE Support
+    $self->{'UNICODE'} = 1 if ( int($info->{'RFCCHARTYP'}) >> 1  == 2051 );
   }
   return  $self->{'SYSINFO'};
 }

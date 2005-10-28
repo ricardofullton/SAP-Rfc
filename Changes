@@ -247,4 +247,5 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - fixed bug to do with parameters (with structures) getting the wrong value
    Thanks to Martin Kaemmerling
 
-
+1.39 Fri Oct 28 09:00:55 BST 2005
+ - first release with UNICODE support - many thanks to John from IED and Bjoern Hippenstiel

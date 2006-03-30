@@ -9,7 +9,7 @@ require Exporter;
 use Data::Dumper;
 
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.39';
+$VERSION = '1.40';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -333,8 +333,8 @@ sub login_string {
 
   my $self = shift;
   my $connect = undef;
-  $self->{USER} = uc( $self->{USER} );
-  $self->{PASSWD} = uc( $self->{PASSWD} );
+  #$self->{USER} = uc( $self->{USER} );
+  #$self->{PASSWD} = uc( $self->{PASSWD} );
 
 # create the login string but only return valid parameters
   map { $connect.= $_ . "=" . $self->{$_} . " " } keys %{$self};
@@ -638,7 +638,21 @@ sub structure {
 	  return $struct1;
   }
 
-  my $iface = {
+# if UNICODE RFC_GET_UNICODE_STRUCTURE
+  my $iface;
+  if ($self->{'UNICODE'}){
+    $iface = {
+      'TABNAME' => { 'TYPE' => int(RFCEXPORT),
+	    'VALUE' => $struct,
+	    'INTYPE' => RFCTYPE_CHAR,
+	    'LEN' => length($struct) }, 
+      'FIELDS'    => { 'TYPE' => int(RFCTABLE),
+	    'VALUE' => [],
+	    'INTYPE' => RFCTYPE_BYTE,
+	    'LEN' => 93 } 
+    };
+  } else {
+    $iface = {
       'TABNAME' => { 'TYPE' => int(RFCEXPORT),
 	    'VALUE' => $struct,
 	    'INTYPE' => RFCTYPE_CHAR,
@@ -647,30 +661,53 @@ sub structure {
 	    'VALUE' => [],
 	    'INTYPE' => RFCTYPE_BYTE,
 	    'LEN' => 83 } 
-  }; 
+    }; 
+  }
 
   my $str = MyRfcCallReceive( $self->{'HANDLE'},
-			      "RFC_GET_STRUCTURE_DEFINITION_P",
+			      $self->{'UNICODE'} ? "RFC_GET_UNICODE_STRUCTURE" : 
+                                 "RFC_GET_STRUCTURE_DEFINITION_P",
 			      $iface );
   
   if ($str->{'__RETURN_CODE__'} ne '0') {
   	$self->{ERROR} = $str->{'__RETURN_CODE__'};
 	  return undef;
   }
+
   
   $struct = SAP::Struc->new( NAME => $struct, RFCINTTYP => $info->{'RFCINTTYP'}, LINTTYP => $self->{'LINTTYP'} );
   map {
-      my ($tabname, $field, $pos, $off, $intlen, $decs, $exid ) =
+      my ($tabname, $field, $pos, $off, $intlen, $decs, $exid );
+      if ($self->{'UNICODE'}){
+        my $rec = $_;
+        #warn "unpack($pack_str) \n";
+        ($tabname, $field, $pos, $exid, $decs, $off, $intlen) =
+         (substr($rec, 0, 30), substr($rec, 30, 30), substr($rec, 60, 4),
+          substr($rec, 64, 1), substr($rec, 68, 4), substr($rec, 72, 4), 
+          substr($rec, 76, 4));
+         #$pos = substr($rec, 0, 30);
+         #$pos = substr($rec, 30, 30);
+         #$pos = substr($rec, 60, 4);
+         #$decs = substr($rec, 68, 4);
+         #$off = substr($rec, 72, 4);
+         #$intlen = substr($rec, 76, 4);
+         ($pos, $off, $intlen, $decs) = 
+             map { unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "V"), $_) }
+                   ($pos, $off, $intlen, $decs);
+      } else {
+        ($tabname, $field, $pos, $off, $intlen, $decs, $exid ) =
 # record structure changes from 3.x to 4.x
-	  unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
-		  "A30 A30 A4 A6 A6 A6 A" : "A10 A10 A4 A6 A6 A6 A", $_ );
+       	  unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
+		         "A30 A30 A4 A6 A6 A6 A" : "A10 A10 A4 A6 A6 A6 A", $_ );
+      }
+      #warn "field: $field - pos: $pos - len: $intlen - offset: $off - dec: $decs \n";
       $struct->addField( 
 			 NAME     => $field,
-#			 LEN      => $intlen,
+ 			 LEN      => $intlen,
 #			 add UNICODE Support
-       LEN      => ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen) ),
-#			 OFFSET   => $off,
-       OFFSET   => ( $self->{'UNICODE'} ? int($off)/2 : int($off) ),
+#      LEN      => ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen) ),
+ 			 OFFSET   => $off,
+#      OFFSET   => ( $self->{'UNICODE'} ? int($off)/2 : int($off) ),
 			 DECIMALS => $decs,
 			 INTYPE   => $exid
 			 )
@@ -847,6 +884,8 @@ SAP::Rfc - SAP RFC - RFC Function calls against an SAP R/3 System
 
 =head1 SYNOPSIS
 
+# WARNING - as of SAP::Rfc 1.40 USER and PASSWD are case sensitive ready for 
+# R3 7.x
   use SAP::Rfc;
   $rfc = new SAP::Rfc(
 		      ASHOST   => 'myhost',
@@ -882,6 +921,8 @@ SAP::Rfc - is a Perl extension for performing RFC Function calls against an SAP 
 The best way to describe this package is to give a brief over view, and then launch into several examples.  The SAP::Rfc package works in concert with several other packages that also come with same distribution, these are SAP::Iface, SAP::Parm, SAP::Tab, and SAP::Struc.  These come together to give you an object oriented programming interface to performing RFC function calls to SAP from a UNIX based platform with your favourite programming language - Perl.  A SAP::Rfc object holds together one ( and only one ) connection to an SAP system at a time.  The SAP::Rfc object can hold one or many SAP::Iface objects, each of which equate to the definition of an RFC Function in SAP ( trans SE37 ). Each SAP::Iface object holds one or many SAP::Parm, and/or SAP::Tab objects, corresponding to the RFC Interface definition in SAP ( SE37 ).
 
 For all SAP::Tab objects, and for complex SAP::Parm objects, a SAP::Struc object can be defined.  This equates to a structure definition in the data dictionary ( SE11 ).  Because the manual definition of interfaces and structures is a boring and tiresome exercise, there are specific methods provided to automatically discover, and add the appropriate interface definitions for an RFC Function module to the SAP::Rfc object ( see methods discover, and structure of SAP::Rfc ).
+
+Please note that USER and PASSWD are now case sensitive - this change has the potential to break backward compatibility.
 
 
 =head1 METHODS:
@@ -1094,11 +1135,22 @@ executable that comes with all SAP R/3 server implementations:
 
 =head2 CACHING
   
-  Activate the caching of Interface and Structure definitions (generated via SAP::Rfc->discover() and SAP::Rfc->structure()).  The definitions are serialized/deserialised using Data::Dumper, which has the effect of speeding up the startup times of scripts (you nolonger have to the SAP system everytime you need get a reference to the cached definitions).  If you enable caching then you need to be careful about differences in byte order between systems you communicate with (same definitions are retrieved regardless of system connected to), and the potential differences in interface/structure definitions between your systems (perhaps because of release etc.).
-
-  $SAP::Rfc::USECACHE = 1;
-
-  The default cache is set to ".rfc_cache/".  If you don't like the default then you need to change this by setting $SAP::Rfc::CACHE to a directory of your choice.
+  Activate the caching of Interface and Structure definitions (generated via
+  SAP::Rfc->discover() and SAP::Rfc->structure()).  The definitions are 
+  serialized/deserialised using Data::Dumper, which has the effect of 
+  speeding up the startup times of scripts (you nolonger have to the SAP
+  system everytime you need get a reference to the cached definitions).  If 
+  you enable caching then you need to be careful about differences in byte
+  order between systems you communicate with (same definitions are retrieved 
+  regardless of system connected to), and the potential differences in 
+  interface/structure definitions between your systems (perhaps because of
+  release etc.).
+ 
+    $SAP::Rfc::USECACHE = 1;
+ 
+  The default cache is set to ".rfc_cache/".  If you don't like the default 
+  then you need to change this by setting $SAP::Rfc::CACHE to a directory of
+  your choice.
 
 
 

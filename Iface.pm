@@ -112,7 +112,7 @@ sub new {
 
   @_ = ('NAME' => @_) if scalar @_ == 1;
   my $self = {
-	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "LIT" : "BIG",
   	PARAMETERS => {},
   	TABLES => {},
   	EXCEPTIONS => {},
@@ -514,7 +514,7 @@ sub new {
   my $proto = shift;
   my $class = ref($proto) || $proto;
   my $self = {
-	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "LIT" : "BIG",
      VALUE => [],
      INTYPE => RFCTYPE_BYTE,
      @_
@@ -804,7 +804,7 @@ sub new {
   my $class = ref($proto) || $proto;
   my $self = {
      INTYPE => RFCTYPE_CHAR,
-	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "LIT" : "BIG",
      DEFAULT => undef,
      CHANGED => 0,
      VALUE => '',
@@ -928,7 +928,7 @@ sub intvalue {
       } elsif ( $self->intype() == RFCTYPE_FLOAT){
 	      return pack("d", $self->{VALUE});
       } elsif ( $self->intype() == RFCTYPE_INT){
-	      return pack(($self->{'RFCINTTYP'} eq "BIG" ? "l" : "V" ), int($self->{VALUE}));
+	      return pack(($self->{'ENDIAN'} eq "BIG" ? "l" : "V" ), int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT2){
 	      return pack("S", int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT1){
@@ -1187,7 +1187,7 @@ sub new {
   my $proto = shift;
   my $class = ref($proto) || $proto;
   my $self = {
-	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "BIG" : "LIT",
+	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "LIT" : "BIG",
      FIELDS => {},
      @_
   };

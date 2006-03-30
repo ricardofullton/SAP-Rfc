@@ -249,3 +249,9 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.39 Fri Oct 28 09:00:55 BST 2005
  - first release with UNICODE support - many thanks to John from IED and Bjoern Hippenstiel
+
+1.40 Fri Mar 17 22:02:44 GMT 2006
+ - Documentation tidy up courtesy of Micheal Lemke
+ - Help with login fix for WebAS 7.x thanks to Paul Williams
+ - Wrong determination of Endian'ness spotted by Peter Kuehn
+

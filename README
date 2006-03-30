@@ -68,7 +68,12 @@ code.  See the description of accept() in perldoc SAP::Rfc.
 
 With this in mind - this package has been developed under Linux, so the installation is therefore focused on this.  This does not mean that it will not work on other UNIX like flavours - to the contrary it probably will, it just hasn't been tested.  The package has been compiled and run under Win32 - special attention needs to be paid to the options found in the Makefile.PL file.
 
-Failing this - for Win32 people Olivier Boudry has kindly supplied me (so everyone win32 slave out there, should be very grateful to him) with a PPD based install package from Version 1.17 onwards - these can be found at http://www.piersharding.com/download/win32/ .
+Failing this - for Win32 people Olivier Boudry has kindly supplied me (so every win32 slave out there, should be very grateful to him) with a PPD based install package from Version 1.17 onwards - these can be found at http://www.piersharding.com/download/win32/ .
+
+Furthermore - if you still need to build your own win32 version then Olivier has given additional instructions on doing this with the "free" Visual Studio version called VS Express 2005.
+This can be found at:
+http://www.piersharding.com/download/win32/Build_SAP-Rfc_with_VSE2005.pdf
+Many thanks go to Olivier.
 
 After the fundamental RFC interface has been developed, the intention is then to extend this to add interface discovery, and a BAPI abstraction layer - but this is down the track.
 
@@ -144,6 +149,23 @@ right direction:
 Example:
 
 perl Makefile.PL --source /opt/rfcsdk --addlibs '-lsomethingwacky'
+
+
+VERSION Info supplied by Others
+================================
+
+Mark Förster writes:
+
+  On HP-UX (11.X) use the ANSI C compiler or gcc,
+  extract the RFCSDK 4.6C 32bit e.g. to /usr/sap/rfcsdk.
+  If you get error messages like:
+  /usr/lib/dld.sl: Can't shl_load() a library containing Thread Local
+	Storage: /usr/lib/libcl.2
+  then try the following solution:
+  export LD_PRELOAD=/usr/lib/libcl.2
+
+
+
 
 
 

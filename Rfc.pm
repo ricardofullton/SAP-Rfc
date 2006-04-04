@@ -9,7 +9,7 @@ require Exporter;
 use Data::Dumper;
 
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.40';
+$VERSION = '1.41';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs

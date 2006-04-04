@@ -255,3 +255,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - Help with login fix for WebAS 7.x thanks to Paul Williams
  - Wrong determination of Endian'ness spotted by Peter Kuehn
 
+1.41 Tue Apr  4 13:45:49 BST 2006
+ - not handling BCDs with 1 decimal place properly - thanks Olivier Boudry
+

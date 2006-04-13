@@ -258,3 +258,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.41 Tue Apr  4 13:45:49 BST 2006
  - not handling BCDs with 1 decimal place properly - thanks Olivier Boudry
 
+1.42 Thu Apr 13 06:35:40 BST 2006
+ - Add SAP Logon ticket support ($rfc->getTicket())
+

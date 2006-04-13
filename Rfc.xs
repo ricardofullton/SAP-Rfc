@@ -185,6 +185,30 @@ SV*  MyDisconnect(SV* sv_handle){
 
 }
 
+SV* MyGetTicket(SV* sv_handle){
+    RFC_HANDLE handle;
+    RFC_RC rc;
+    RFC_ERROR_INFO_EX  error_info;
+    char ticket[4096];
+    HV* hash = newHV();
+
+    handle = SvIV( sv_handle );
+
+    rc = RfcGetTicket( handle, (RFC_CHAR *)&ticket );
+
+    /* check the return code - if necessary construct an error message */
+    if ( rc != RFC_OK ){
+        RfcLastErrorEx( &error_info );
+        hv_store(  hash, (char *) "__RETURN_CODE__", 15,
+		      newSVpvf( "EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s", "RfcGetTicket", error_info.group, error_info.key, error_info.message ),
+		      0 );
+    } else {
+        hv_store(  hash,  (char *) "__RETURN_CODE__", 15, newSVpvf( "%d", RFC_OK ), 0 );
+        hv_store(  hash,  (char *) "TICKET", 6, newSVpvf( "%s", ticket ), 0 );
+    };
+    return newRV_noinc( (SV*) hash);
+}
+
 
 /* create a parameter space and zero it */
 static void * make_space( SV* length ){
@@ -1595,6 +1619,10 @@ MyAllowStartProgram (sv_program_name)
 
 SV *
 MyDisconnect (sv_handle)
+	SV *	sv_handle
+
+SV *
+MyGetTicket (sv_handle)
 	SV *	sv_handle
 
 SV *

@@ -2,6 +2,8 @@ use ExtUtils::MakeMaker;
 
 # FIND POSSIBLE RFC INSTALLATIONS
 my @POSSIBLE_RFC_DIRS = qw(/usr/sap/rfcsdk /usr/local /usr);
+my $EMBED_MANIFEST= 0;
+map {my($key,$val) = split(/=/,$_); $EMBED_MANIFEST = 1 if $key eq "EMBED_MANIFEST" && $val =~ /yes/ } @ARGV;
 
 # the ADDITIONAL_LIBS needs to be modified for each OS flavour - the rfcsdk
 # has the information regarding where libs and incs resides for each
@@ -225,6 +227,18 @@ sub MY::makefile { '' }
 
 sub MY::processPL { '' }
 
+# add the manifest for win32
+sub MY::dynamic_lib { 
+  my $self = shift; 
+  my $section = $self->MM::dynamic_lib;
+	if ($^O =~ /MSWin32/i && $EMBED_MANIFEST){
+	  $section .= "\tcd blib\\arch\\auto\\SAP\\Rfc\n";
+	  $section .= "\tmt.exe -outputresource:Rfc.dll;2 -manifest Rfc.dll.manifest\n";
+	  $section .= "\tcd ..\\..\\..\\..\\..\n";
+	}
+	return $section;
+}
+
 
 # Get input values for testing
 print "\n\n\n";
@@ -236,7 +250,7 @@ print "           ---------------- Please Press Enter --------------- \n";
 $x=<>;
 print 
     <<ENDOFTEXT;
-    Copyright (c) 2002 Piers Harding.
+    Copyright (c) 2002 - 2006 Piers Harding.
     All rights reserved.
 
     This program is free software; you can redistribute it and/or modify

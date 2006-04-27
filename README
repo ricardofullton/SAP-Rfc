@@ -2,7 +2,7 @@
 			   SAP::Rfc XS Package
 
 
-    Copyright (c) 2005 Piers Harding.
+    Copyright (c) 1999 - 2006 Piers Harding.
     All rights reserved.
     This program is free software; you can redistribute it and/or modify
     it under the terms of either:
@@ -74,6 +74,8 @@ Furthermore - if you still need to build your own win32 version then Olivier has
 This can be found at:
 http://www.piersharding.com/download/win32/Build_SAP-Rfc_with_VSE2005.pdf
 Many thanks go to Olivier.
+As VSE 2005 and above MS compilers require that a MANIFEST be embedded in the compiled binary, the build process is slightly modified - you must add a command line parameter:
+perl Makefile.PL EMBED_MANIFEST=yes
 
 After the fundamental RFC interface has been developed, the intention is then to extend this to add interface discovery, and a BAPI abstraction layer - but this is down the track.
 

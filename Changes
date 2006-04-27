@@ -261,3 +261,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.42 Thu Apr 13 06:35:40 BST 2006
  - Add SAP Logon ticket support ($rfc->getTicket())
 
+1.43 Wed Apr 26 10:09:59 BST 2006
+ - improve PPD build features in Makefile.PL (Olivier Boudry)
+ - correct documentation format in Rfc.pm

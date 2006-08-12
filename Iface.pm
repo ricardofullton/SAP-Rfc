@@ -27,6 +27,7 @@ use constant RFCTYPE_INT1  => 10;
 # Valid parameters
 my $IFACE_VALID = {
    NAME => 1,
+   UNICODE => 1,
    ENDIAN => 1,
    HANDLER => 1,
    PARAMETERS => 1,
@@ -37,7 +38,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.43';
+$VERSION = '1.45';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -295,13 +296,15 @@ sub iface {
     my $iface = {};
     map { $iface->{$_->name()} = { 'TYPE' => $_->type(),
 	                           'INTYPE' => $_->intype(),
-                                   'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : $_->intvalue()),
+				                     'DATA' => ($_->structure ? [$_->data() ] : undef),
+                                   'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : ($self->unicode && $_->structure ? $_->intvalueparts() : $_->intvalue())),
                                    'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
       } ( $flag ? $self->parms : $self->parms_noempty() );
 
     map { $iface->{$_->name()} = { 'TYPE' => RFCTABLE,
 	                           'INTYPE' => $_->intype(),
-				   'VALUE' => [ ($_->rows()) ],
+				   'VALUE' => [ ($self->unicode ? $_->brokenrows() : $_->rows()) ],
+				   'DATA' => [$_->data() ],
 				   'LEN' => $_->leng() };
       } ( $self->tabs() );
 
@@ -309,7 +312,16 @@ sub iface {
       $iface->{'__HANDLER__'} = $self->{'HANDLER'};
       $iface->{'__SELF__'} = $self;
     }
+#		use Data::Dumper;
+#		print STDERR "Interface to pass in: ".Dumper($iface)."\n";
+#		exit(0);
     return $iface;
+}
+
+sub unicode {
+
+my $self = shift;
+	return $self->{UNICODE};
 }
 
 
@@ -555,6 +567,33 @@ sub rows {
 }
 
 
+sub brokenrows {
+  my $self = shift;
+  my @rows = ();
+  my $str = $self->structure();
+  map{ my $rec = pack("A".$self->leng(),$_);
+	     push(@rows, [ map { substr($rec, $str->{FIELDS}->{$_}->{OFFSET}, $str->{FIELDS}->{$_}->{LEN}) } ($str->fields) ] );
+	} (@{$self->{VALUE}});
+	#use Data::Dumper;
+	#print STDERR "BROKENROWS: ".Dumper(\@rows)."\n";
+	return @rows;
+}
+
+
+# retrieve the rows in hashes based on the field names
+sub data {
+  my $self = shift;
+  my @rows = ();
+	my $str = $self->structure;
+  foreach ( $str->fields() ){
+    push ( @rows, [$str->{FIELDS}->{$_}->{INTYPE}, $str->{FIELDS}->{$_}->{OFFSET2}, $str->{FIELDS}->{$_}->{LEN2}]);
+  }
+	#use Data::Dumper;
+	#print STDERR "THE DATA: ".Dumper(\@rows)."\n";
+  return @rows;
+}
+
+
 # retrieve the rows in hashes based on the field names
 sub hashRows {
   my $self = shift;
@@ -597,7 +636,26 @@ sub addRow {
       map { $self->structure->$_($row->{$_}) } keys %{$row};
       $row = $self->structure->value;
       $self->structure->value("");
-    }
+    } elsif (ref($row) eq 'ARRAY'){
+ 	    #use Data::Dumper;
+ 	    #print STDERR "GOT an ARRAY Row: ".Dumper($row)."\n";
+	    my $off = 0;
+		  my $cnt = 0;
+	    map { $row->[$_->{pos} -1] = substr($row->[$_->{pos} -1], 0, $_->{len1})  } (@{$self->structure->fieldinfo});
+	    foreach my $fld (@{$self->structure->fieldinfo}){
+ 		    #print STDERR "field: ".Dumper($fld)."\n";
+        if ($fld->{off1} > $off){
+ 			    #print STDERR "splice: $cnt, 0 $fld->{off1} $off\n";
+			    splice(@{$row}, $cnt, 0, (" " x ($fld->{off1} - $off)));
+ 	        #print STDERR "ARRAY NOW Row: ".Dumper($row)."\n";
+			    $cnt++;
+			  }
+			  $cnt++;
+			  $off = $fld->{off1} + $fld->{len1};
+		}
+   	  #print STDERR "NEW ARRAY Row: ".Dumper($row)."\n";
+			$row = join('', @{$row});
+		}
     push(@{$self->{VALUE}}, $row);
   }
 }
@@ -621,8 +679,8 @@ sub name {
 sub intype {
   my $self = shift;
   $self->{INTYPE} = shift if @_;
-  die "Table Type not valid $self->{INTYPE} !"
-     if ! exists $TAB_VALTYPE->{$self->{INTYPE}};
+  #die "Table Type not valid $self->{INTYPE} !"
+  #   if ! exists $TAB_VALTYPE->{$self->{INTYPE}};
   return $self->{INTYPE};
 }
 
@@ -816,8 +874,8 @@ sub new {
   die "Parameter Type not valid $self->{TYPE} !" 
      if ! exists $PARMTYPE->{$self->{TYPE}};
 
-  die "Parameter Internal Type not valid $self->{INTYPE} !" 
-     if ! exists $PARMS_VALTYPE->{$self->{INTYPE}};
+#  die "Parameter Internal Type not valid $self->{INTYPE} !" 
+#     if ! exists $PARMS_VALTYPE->{$self->{INTYPE}};
 
 # Validate parameters
   map { delete $self->{$_} if ! exists $PARMS_VALID->{$_} } keys %{$self};
@@ -825,6 +883,8 @@ sub new {
 
 # create the object and return it
   bless ($self, $class);
+#	use Data::Dumper;
+#	print STDERR "Parameter: $self->{NAME} ", Dumper($self)."\n";
   return $self;
 }
 
@@ -857,9 +917,23 @@ sub decimals {
 sub intype {
   my $self = shift;
   $self->{INTYPE} = shift if @_;
-  die "Parameter INTYPE not valid $self->{INTYPE} !"
-     if ! exists $PARMS_VALTYPE->{$self->{INTYPE}};
+  #die "Parameter INTYPE not valid $self->{INTYPE} !"
+  #   if ! exists $PARMS_VALTYPE->{$self->{INTYPE}};
   return $self->{INTYPE};
+}
+
+
+# retrieve the rows in hashes based on the field names
+sub data {
+  my $self = shift;
+  my @rows = ();
+	my $str = $self->structure;
+  foreach ( $str->fields() ){
+    push ( @rows, [$str->{FIELDS}->{$_}->{INTYPE}, $str->{FIELDS}->{$_}->{OFFSET2}, $str->{FIELDS}->{$_}->{LEN2}]);
+  }
+	#use Data::Dumper;
+	#print STDERR "THE DATA: ".Dumper(\@rows)."\n";
+  return @rows;
 }
 
 
@@ -889,12 +963,15 @@ sub value {
         return $flds;
       } else {
         # no hash and no structure
-        $self->leng(length($self->{'VALUE'})) 
-	    if $self->intype() == RFCTYPE_CHAR ||
-	       $self->intype() == RFCTYPE_BYTE;
-        return $self->{'VALUE'};
+	      if ($self->intype() == RFCTYPE_CHAR ||
+	         $self->intype() == RFCTYPE_BYTE) {
+          $self->{VALUE} = pack("A".$self->leng, $self->{VALUE});
+          #$self->leng(length($self->{'VALUE'})); 
+					#print STDERR "Field: $self->{NAME} length changed to: $self->{LEN} \n";
+		  	}
       }
     }
+    return $self->{'VALUE'};
   }
 
   # return a complex or simple parameter value
@@ -919,12 +996,44 @@ sub intvalue {
   # this overrides
   $self->{'VALUE'} = shift if @_;
 
+	# sort out structured value returned from unicode call
+  if (ref($self->{'VALUE'}) eq 'ARRAY'){
+	  #use Data::Dumper;
+	  #print STDERR "GOT an ARRAY Row: ".Dumper($self->{VALUE})."\n";
+	  my $off = 0;
+		my $cnt = 0;
+	  map { $self->{'VALUE'}->[$_->{pos} -1] = substr($self->{'VALUE'}->[$_->{pos} -1], 0, $_->{len1})  } (@{$self->structure->fieldinfo});
+	  foreach my $fld (@{$self->structure->fieldinfo}){
+#		  print STDERR "field: ".Dumper($fld)."\n";
+      if ($fld->{off1} > $off){
+#			  print STDERR "splice: $cnt, 0 $fld->{off1} $off\n";
+			  splice(@{$self->{'VALUE'}}, $cnt, 0, (" " x ($fld->{off1} - $off)));
+#	      print STDERR "ARRAY NOW Row: ".Dumper($self->{VALUE})."\n";
+			  $cnt++;
+			}
+			$cnt++;
+			$off = $fld->{off1} + $fld->{len1};
+		}
+#	  print STDERR "NEW ARRAY Row: ".Dumper($self->{VALUE})."\n";
+		$self->{'VALUE'} = join('', @{$self->{'VALUE'}});
+	}
+
 
 # Sort out theinternal format
-#  if ( $self->{VALUE}){
   if ( defined $self->{'VALUE'} && $self->{'VALUE'} ne ''){
       if ( $self->intype() == RFCTYPE_BCD){
-	      return pack("H*", $self->{VALUE});
+				#print STDERR "BCD ($self->{NAME}) BEFORE PACK: $self->{VALUE} \n";
+	      $self->{VALUE} =~ s/^\s+([ -+]\d.*)$/$1/;
+				#print STDERR "BCD ($self->{NAME}) BEFORE PACK AFTER REGEX: $self->{VALUE} \n";
+	      $self->{VALUE} ||= 0;
+				#print STDERR "BCD DECIMALS: $self->{DECIMALS}\n";
+	      my $value = sprintf("%0".int(($self->{LEN}*2) + ($self->{DECIMALS} > 0 ? 1:0)).".".$self->{DECIMALS}."f", $self->{VALUE});
+	      $value =~ s/\.//g;
+	      my @flds = split(//, $value);
+	      shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
+	      $value = join('', @flds);
+				#print STDERR "BCD ($self->{NAME}) TO PACK: $value\n";
+        return pack("H*", $value);
       } elsif ( $self->intype() == RFCTYPE_FLOAT){
 	      return pack("d", $self->{VALUE});
       } elsif ( $self->intype() == RFCTYPE_INT){
@@ -933,7 +1042,8 @@ sub intvalue {
 	      return pack("S", int($self->{VALUE}));
       } elsif ( $self->intype() == RFCTYPE_INT1){
       # get the last byte of the integer
-	      return (unpack("A A A A", int($self->{VALUE})))[-1];
+	      #return (unpack("A A A A", int($self->{VALUE})))[-1];
+				return chr(int($self->{VALUE}));
       } else {
 	      return pack("A".$self->leng(),$self->{VALUE});
       };
@@ -945,6 +1055,20 @@ sub intvalue {
       };
   };
 
+}
+
+
+# get the parameter internal value
+sub intvalueparts {
+
+  my $self = shift;
+  # sort out structured parameters
+  my $str = $self->structure();
+  my $rec = pack("A".$self->leng(),$self->{VALUE});
+	my $row = [ map { substr($rec, $str->{FIELDS}->{$_}->{OFFSET}, $str->{FIELDS}->{$_}->{LEN}) } ($str->fields) ];
+	#use Data::Dumper;
+	#print STDERR "INTVALUEPARTS: ".Dumper($row)."\n";
+  return $row;
 }
 
 
@@ -1112,7 +1236,10 @@ my $VALID = {
    RFCINTTYP => 1,
    LINTTYP => 1,
    NAME => 1,
-   FIELDS => 1
+   FIELDS => 1,
+   TYPE => 1,
+   LEN => 1,
+   DATA => 1
 };
 
 # Valid Field parameters
@@ -1120,9 +1247,14 @@ my $FIELDVALID = {
    NAME => 1,
    ENDIAN => 1,
    INTYPE => 1,
+   EXID => 1,
    DECIMALS => 1,
    LEN => 1,
    OFFSET => 1,
+   LEN2 => 1,
+   OFFSET2 => 1,
+   LEN4 => 1,
+   OFFSET4 => 1,
    POSITION => 1,
    VALUE => 1
 };
@@ -1140,7 +1272,7 @@ my $VALCHARTYPE = {
 
    X => RFCTYPE_BYTE,
    B => RFCTYPE_INT1,  # This is a place holder for a 1 byte int <=255+
-   S => RFCTYPE_INT,
+   S => RFCTYPE_INT2,
    P => RFCTYPE_BCD,
    D => RFCTYPE_DATE,
    T => RFCTYPE_TIME,
@@ -1159,6 +1291,8 @@ my $VALTYPE = {
    RFCTYPE_TIME,  RFCTYPE_TIME,
    RFCTYPE_NUM, RFCTYPE_NUM,
    RFCTYPE_INT, RFCTYPE_INT,
+   RFCTYPE_INT1, RFCTYPE_INT1,
+   RFCTYPE_INT2, RFCTYPE_INT2,
    RFCTYPE_FLOAT, RFCTYPE_FLOAT
 };
 
@@ -1189,6 +1323,9 @@ sub new {
   my $self = {
 	   ENDIAN => join(" ", map { sprintf "%#02x", $_ } unpack("C*",pack("L",0x12345678))) eq "0x78 0x56 0x34 0x12" ? "LIT" : "BIG",
      FIELDS => {},
+		 DATA => [],
+		 LEN => 0,
+		 TYPE => RFCTYPE_CHAR,
      @_
   };
 
@@ -1282,12 +1419,53 @@ sub name {
 }
 
 
+# get the length
+sub StrType {
+  my $self = shift;
+#	print STDERR "setting structure type : ", @_, "\n";
+	$self->{'TYPE'} = shift @_ if @_;
+#	print STDERR "setting Type is now: $self->{TYPE}\n";
+  return $self->{'TYPE'};
+}
+
+
+# get the length
+sub StrLength {
+  my $self = shift;
+  return $self->{'LEN'};
+}
+
+
 # return the current set of field names
 sub fields {
   my $self = shift;
   return  sort { $self->{FIELDS}->{$a}->{POSITION} <=>
 		  $self->{FIELDS}->{$b}->{POSITION} }
 		  keys %{$self->{FIELDS}};
+}
+
+
+# return the current set of field names
+sub fieldinfo {
+  my $self = shift;
+	my @data = ();
+  map { push(@data, {
+	                    'fieldname' => $_,
+	                    'exid' => $self->{FIELDS}->{$_}->{EXID},
+	                    'pos'  => $self->{FIELDS}->{$_}->{POSITION},
+	                    'dec'  => $self->{FIELDS}->{$_}->{DECIMALS},
+	                    'off1' => $self->{FIELDS}->{$_}->{OFFSET},
+	                    'len1' => $self->{FIELDS}->{$_}->{LEN},
+	                    'off2' => $self->{FIELDS}->{$_}->{OFFSET2},
+	                    'len2' => $self->{FIELDS}->{$_}->{LEN2},
+	                    'off4' => $self->{FIELDS}->{$_}->{OFFSET4},
+	                    'len4' => $self->{FIELDS}->{$_}->{LEN4}
+	                   })
+	      }
+	    sort { $self->{FIELDS}->{$a}->{POSITION} <=>
+		  $self->{FIELDS}->{$b}->{POSITION} }
+		  keys %{$self->{FIELDS}};
+	return \@data;
 }
 
 
@@ -1391,11 +1569,17 @@ sub _unpack_structure {
 
   my $self = shift;
   my @fields = $self->fields($self);
+	#print STDERR "unpacking: $self->{NAME} => $self->{VALUE} \n";
+	#use Data::Dumper;
+	#print STDERR Dumper($self->{DATA})."\n";
   my $offset = 0;
   map {
         my $fld = $self->{FIELDS}->{$fields[$_]};
         $offset = int($fld->{OFFSET}) if exists $fld->{OFFSET};
+#				print STDERR "field: $fld->{NAME} type: $fld->{INTYPE} len: $fld->{LEN} off: $offset\n";
         $fld->{VALUE} = substr($self->{VALUE}, $offset, int($fld->{LEN}));
+#				print STDERR "actual length: ".length($self->{VALUE})."\n";
+#				print STDERR "field value: ".unpack("H*", $fld->{VALUE})."#\n";
 	#  Transform various packed dta types
         if ( $fld->{INTYPE} eq RFCTYPE_INT ){
 	# Long INT4
@@ -1403,6 +1587,7 @@ sub _unpack_structure {
 	     unpack((($self->{'RFCINTTYP'} eq 'BIG')  ? "N" : "V"), $fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT2 ){
 	# Short INT2
+#	        print STDERR "extracting $fld->{NAME} => ".unpack("H*", $fld->{VALUE})."\n";
           $fld->{VALUE} = unpack("S",$fld->{VALUE});
         } elsif ( $fld->{INTYPE} eq RFCTYPE_INT1 ){
 	# INT1

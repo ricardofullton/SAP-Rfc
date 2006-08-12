@@ -264,3 +264,14 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.43 Wed Apr 26 10:09:59 BST 2006
  - improve PPD build features in Makefile.PL (Olivier Boudry)
  - correct documentation format in Rfc.pm
+
+1.44 Tue May 23 12:53:14 BST 2006
+ - add registered RFC event loop control with register() and process()
+
+1.45 Sun Aug  6 19:41:12 BST 2006
+ - major rewrite to include RFC Unicode library support
+ - includes moving to registering structures
+ - using built in structure and interface lookup
+ - support for either librfccm or librfcum
+ - conversions built around UTF-8 -> UTF16 -> UTF-8 characterset translation
+ - special thanks to Gregor Wolf, and Jouke Visser for all their help in testing

@@ -21,7 +21,8 @@ sub getSource{
 
  my $rfc = shift;
  use Data::Dumper;
- my $if = $rfc->discover('RFC_READ_REPORT');
+ #my $if = $rfc->discover('RFC_READ_REPORT'); # code commented out
+ my $if = $rfc->discover('RFC_READ_DEVELOPMENT_OBJECT'); 
  $if->PROGRAM('SAPLGRFC');
  $rfc->callrfc( $if );
 # print STDERR Dumper($if);

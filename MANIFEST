@@ -16,6 +16,14 @@ examples/makesoap.pl
 examples/reports.pl
 examples/getticket.pl
 examples/reg.pl
+examples/reg.pl
+examples/bank.pl
+examples/curr.pl
+examples/cust.pl
+examples/exrates.pl
+examples/uni.pl
+examples/sys.pl 
+examples/lang.pl
 examples/lib/Apache/SAPSOAP.pm
 examples/lib/Apache/SAPSOAPServer.pm
 examples/lib/SAP/SOAP.pm

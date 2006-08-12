@@ -1,5 +1,12 @@
 package SAP::Rfc;
 
+=pod
+
+    Copyright (c) 2002 - 2006 Piers Harding.
+		    All rights reserved.
+
+=cut
+
 use strict;
 
 require 5.005;
@@ -8,8 +15,10 @@ require DynaLoader;
 require Exporter;
 use Data::Dumper;
 
+#use utf8;
+
 use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.43';
+$VERSION = '1.45';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -105,6 +114,7 @@ my $VALID =  {
     GETSSO2 => 1,
     MYSAPSSO2 => 1,
     X509CERT => 1,
+    UNICODE => 1,
   };
 
 
@@ -177,6 +187,7 @@ sub new {
 	#USER   => "SAPCPIC",
 	#PASSWD => "ADMIN",
 	LANG   => "EN",
+	UNICODE => MyIsUnicode(),
 	LCHECK   => "0",
 	TRFC   => 0,
 	TRFC_CHECK => \&SAP::Rfc::TID_CHECK,
@@ -187,35 +198,56 @@ sub new {
 	@rest
 	};
 
-
 # validate the login parameters
-    map { delete $self->{$_} unless exists $VALID->{$_} } keys %{$self};
+  # map { delete $self->{$_} unless exists $VALID->{$_} } keys %{$self};
+
+  # print STDERR "UNICODE: $self->{UNICODE} \n";
+
+  # initialise
+ 	MyInit();
+
+#	if ($self->{UNICODE}){
+#	  require Text::Iconv;
+#		Text::Iconv->raise_error(1);
+#		$self->{TOUTF8} = new Text::Iconv("UTF-16", "UTF-8");
+#		#$self->{TOUTF16} = new Text::Iconv("UTF-8", "UTF-16LE");
+#		$self->{TOUTF16} = new Text::Iconv("UTF-8", "UTF-16");
+#	}
 
 # unless we are creating a registered RFC
 # eg. SAP => external program
-    unless (exists $self->{'TPNAME'}){
+  unless (exists $self->{'TPNAME'}){
 # create the connection string and login to SAP
-      my $conn = MyConnect( login_string( $self ) );
-      die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
-      $self->{'HANDLE'} = $conn;
-    }
+    my $conn = MyConnect(login_string($self));
+#    my $conn =  $self->{UNICODE} ? 
+#			     MyConnect(do_8to16(login_string($self))) :
+#					 MyConnect(login_string($self));
+    die "Unable to connect to SAP" unless $conn =~ /^\d+$/;
+    $self->{'HANDLE'} = $conn;
+  }
 
 # ensure that the structure cache has been setup
 # if being used
-    if ($USECACHE){
-      $CACHE = $DEFAULT_CACHE unless $CACHE;
-    }
+  if ($USECACHE){
+    $CACHE = $DEFAULT_CACHE unless $CACHE;
+  }
     
-    if ($CACHE){
-      mkdir $CACHE unless -d $CACHE;
-      mkdir $CACHE.'/structs' unless -d $CACHE.'/structs';
-      mkdir $CACHE.'/ifaces' unless -d $CACHE.'/ifaces';
-      mkdir $CACHE.'/idocs' unless -d $CACHE.'/idocs';
-	}
+  if ($CACHE){
+    mkdir $CACHE unless -d $CACHE;
+    mkdir $CACHE.'/structs' unless -d $CACHE.'/structs';
+    mkdir $CACHE.'/ifaces' unless -d $CACHE.'/ifaces';
+    mkdir $CACHE.'/idocs' unless -d $CACHE.'/idocs';
+  }
 
 # create the object and return it
-    bless ($self, $class);
-    return $self;
+  bless ($self, $class);
+  return $self;
+}
+
+
+sub unicode {
+  my $self = shift;
+	return $self->{UNICODE};
 }
 
 
@@ -259,6 +291,7 @@ sub convtype {
 
 }
 
+
 sub accept {
 
   my $self = shift;
@@ -301,6 +334,58 @@ sub accept {
 }
 
 
+sub register {
+
+  my $self = shift;
+  my $wait = shift || 0;
+  my $callback = shift || "";
+
+  die "must have TPNAME, GWHOST and GWSERV to Register RFCs\n"
+    unless exists $self->{'GWHOST'} &&
+           exists $self->{'GWSERV'} &&
+           exists $self->{'TPNAME'};
+
+  my $conn = "-a ".$self->{'TPNAME'}." -g ".$self->{'GWHOST'}.
+             " -x ".$self->{'GWSERV'};
+  $conn .= " -t " if $self->{'TRACE'} > 0;
+
+  my $d = "";
+  foreach my $iface (sort keys %{$self->{'INTERFACES'}}){
+    my $if = $self->{'INTERFACES'}->{$iface};
+    $d .= "Function Name: $iface\nIMPORTING\n";
+    map { if ($_->type() eq RFCIMPORT){ $d .= "     ".sprintf("%-30s",$_->name())."     ".convtype($_->intype())."(".$_->leng().")\n" }
+	  } ( $if->parms() );
+    $d .= "EXPORTING\n";
+    map { if ($_->type() eq RFCEXPORT){ $d .= "     ".sprintf("%-30s",$_->name())."     ".convtype($_->intype())."(".$_->leng().")\n" }
+	  } ( $if->parms() );
+    $d .= "TABLES\n";
+    map { my $tab = $_;
+	  $d .= "     ".sprintf("%-30s",$tab->name())."     C(".$_->leng().")\n";
+	} ( $if->tabs() );
+    $d .= " \n";
+  }
+
+  my $docu = [ (map { chomp($_); pack("A80",$_) } split(/\n/,$d)) ];
+
+  my $ifaces = { map { $_->name() => $_->iface(1) } values %{$self->{'INTERFACES'}} };
+
+  # set the callback up
+  $self->{'WAIT'} = $wait || 0;
+  $self->{'CALLBACK'} = $callback || undef;
+  return my_register($conn, $docu, $ifaces, $self);
+}
+
+
+sub process {
+
+  my $self = shift;
+  my $handle = shift;
+	my $wait = shift || 0;
+  return my_one_loop($handle, $wait);
+
+}
+
+
 sub Handler {
 
   my $handler = shift;
@@ -340,7 +425,7 @@ sub login_string {
   #$self->{PASSWD} = uc( $self->{PASSWD} );
 
 # create the login string but only return valid parameters
-  map { unless (/LINTTYP|HANDLE|TRFC_COMMIT|RETURN|SYSINFO|TRFC_ROLLBACK|TRFC_CONFIRM|TRFC_CHECK/){$connect.= $_ . "=" . $self->{$_} . " "} } keys %{$self};
+  map { unless (/LINTTYP|testconn|TESTCONN|INTERFACE|UTF|HANDLE|TRFC_COMMIT|RETURN|SYSINFO|TRFC_ROLLBACK|TRFC_CONFIRM|TRFC_CHECK/){$connect.= $_ . "=" . $self->{$_} . " "} } keys %{$self};
 
   return $connect;
 }
@@ -415,42 +500,83 @@ sub discover {
 	  return $iface1;
   }
 
-  my $if = {
-      'FUNCNAME' => { 'TYPE' => RFCEXPORT,
-		      'VALUE' => $iface,
-		      'INTYPE' => RFCTYPE_CHAR,
-		      'LEN' => length($iface) }, 
-      'PARAMS_P'    => { 'TYPE' => RFCTABLE,
-			 'VALUE' => [],
-			 'INTYPE' => RFCTYPE_BYTE,
-			 'LEN' => 215 },
+#  my $if;
+##	if ($self->unicode){
+##    $if = {
+##          'FUNCNAME' => { 'TYPE' => RFCEXPORT,
+##		      #'NAME' => $self->u8to16('FUNCNAME'),
+##		      'NAME' => do_8to16('FUNCNAME'),
+##		      #'VALUE' => $self->u8to16($iface),
+##		      'VALUE' => do_8to16($iface),
+##		      'INTYPE' => RFCTYPE_CHAR,
+##		      'LEN' => length($iface) * 2 }, 
+##          'PARAMS_P'    => { 'TYPE' => RFCTABLE,
+##		      #'NAME' => $self->u8to16('PARAMS_P'),
+##		      'NAME' => do_8to16('PARAMS_P'),
+##			    'VALUE' => [],
+##			    'INTYPE' => RFCTYPE_BYTE,
+##			    'LEN' => 430 },
+##    }; 
+##	} else {
+#    $if = {
+#          'FUNCNAME' => { 'TYPE' => RFCEXPORT,
+#		      'VALUE' => pack("A30",$iface),
+#		      'INTYPE' => RFCTYPE_CHAR,
+#		      #'LEN' => length($iface) }, 
+#		      'LEN' => $self->unicode ? 60 : 30 }, 
+#          'PARAMS_P'    => { 'TYPE' => RFCTABLE,
+#			    'VALUE' => [],
+#			    'INTYPE' => RFCTYPE_BYTE,
+#			    'LEN' => $self->unicode ? 430 : 215 },
+#    }; 
+##  }; 
 
-  }; 
+#  my $ifc = MyRfcCallReceive( $self->{'HANDLE'},
+##			      #($self->unicode ? $self->u8to16("RFC_GET_FUNCTION_INTERFACE_P") :
+##			      ($self->unicode ? do_8to16("RFC_GET_FUNCTION_INTERFACE_P") :
+#			      "RFC_GET_FUNCTION_INTERFACE_P",
+#			      $if );
+#  
+#  if ($ifc->{'__RETURN_CODE__'} ne '0') {
+#  	$self->{ERROR} = $ifc->{'__RETURN_CODE__'};
+#	return undef;
+#  }
+  my $ifc = MyGetInterface( $self->{'HANDLE'}, $iface);
+#  print STDERR "Interface: ".Dumper($ifc)." \n";
 
-  my $ifc = MyRfcCallReceive( $self->{'HANDLE'},
-			      "RFC_GET_FUNCTION_INTERFACE_P",
-			      $if );
-  
-  if ($ifc->{'__RETURN_CODE__'} ne '0') {
-  	$self->{ERROR} = $ifc->{'__RETURN_CODE__'};
-	return undef;
-  }
-
-  my $interface = new SAP::Iface(NAME => $iface);
-  for my $row ( @{ $ifc->{'PARAMS_P'} } ){
-#      print STDERR "PARAM ROW: $row \n";
+  my $interface = new SAP::Iface(NAME => $iface, UNICODE => $self->unicode);
+#	print STDERR "building interface ...\n";
+  #for my $row ( @{ $ifc->{'PARAMS_P'} } ){
+  for my $row ( @{$ifc} ){
+#      print STDERR "PARAM ROW: ".Dumper($row)." \n";
+#      my ($type, $name, $tabname, $field, $datatype,
+#          $pos, $off, $intlen, $decs, $default, $text ) =
+# record structure changes from release 3.x to 4.x 
+#	      unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
+#		      "A A30 A30 A30 A A4 A6 A6 A6 A21 A79 A1" :
+#		      "A A30 A10 A10 A A4 A6 A6 A6 A21 A79", $row );
       my ($type, $name, $tabname, $field, $datatype,
           $pos, $off, $intlen, $decs, $default, $text ) =
-# record structure changes from release 3.x to 4.x 
-	      unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
-		      "A A30 A30 A30 A A4 A6 A6 A6 A21 A79 A1" :
-		      "A A30 A10 A10 A A4 A6 A6 A6 A21 A79", $row );
+					(
+					$row->{paramclass},
+					$row->{parameter},
+					$row->{tabname},
+					$row->{fieldname},
+					$row->{exid},
+					$row->{pos},
+					$row->{off1},
+					$row->{len1},
+					$row->{dec},
+					$row->{default},
+					$row->{text}
+					);
+   
       $name =~ s/\s//g;
       $tabname =~ s/\s//g;
       $field =~ s/\s//g;
-#      $intlen = int($intlen);
+      $intlen = int($intlen);
 #     support UNICODE
-      $intlen = ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen));
+      #$intlen = ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen));
       $decs = int($decs);
       # if the character value default is in quotes - remove quotes
       if ($default =~ /^\'(.*?)\'\s*$/){
@@ -476,6 +602,10 @@ sub discover {
       } elsif ($datatype eq "I"){
 	  # Integer
 	      $datatype = RFCTYPE_INT;
+	      $default = int($default) if $default;
+      } elsif ($datatype eq "b"){
+	  # Single byte Integer
+	      $datatype = RFCTYPE_INT1;
 	      $default = int($default) if $default;
       } elsif ($datatype eq "s"){
 	  # Short Integer
@@ -512,7 +642,9 @@ sub discover {
               ){
 	  # do a structure object
 	      $structure = structure( $self, $tabname );
-	      $datatype = RFCTYPE_BYTE;
+	      #$datatype = RFCTYPE_BYTE;
+				$datatype = $structure->StrType();
+				$intlen = $structure->StrLength();
       } else {
 	  # Character
 	      $datatype = RFCTYPE_CHAR;
@@ -547,7 +679,8 @@ sub discover {
 	      $interface->addTab(
 			     # INTYPE => $datatype, 
 			       RFCINTTYP => $info->{'RFCINTTYP'},
-			       INTYPE => RFCTYPE_BYTE, 
+			       #INTYPE => RFCTYPE_BYTE, 
+			       INTYPE => $structure->StrType(), 
 			       NAME => $name,
 			       STRUCTURE => $structure, 
 			       LEN => $intlen);
@@ -638,85 +771,120 @@ sub structure {
 	  $struct1->{'RFCINTTYP'} = $info->{'RFCINTTYP'};
 	  $struct1->{'LINTTYP'} = $self->{'LINTTYP'};
     #$struct1->{'SYSINFO'} = $info;
+    my $type = MyInstallStructure($self->{'HANDLE'}, {NAME => $struct1->name, DATA => $struct1->fieldinfo});
+    $struct1->StrType($type);
 	  return $struct1;
   }
 
 # if UNICODE RFC_GET_UNICODE_STRUCTURE
-  my $iface;
-  if ($self->{'UNICODE'}){
-    $iface = {
-      'TABNAME' => { 'TYPE' => int(RFCEXPORT),
-	    'VALUE' => $struct,
-	    'INTYPE' => RFCTYPE_CHAR,
-	    'LEN' => length($struct) }, 
-      'FIELDS'    => { 'TYPE' => int(RFCTABLE),
-	    'VALUE' => [],
-	    'INTYPE' => RFCTYPE_BYTE,
-	    'LEN' => 93 } 
-    };
-  } else {
-    $iface = {
-      'TABNAME' => { 'TYPE' => int(RFCEXPORT),
-	    'VALUE' => $struct,
-	    'INTYPE' => RFCTYPE_CHAR,
-	    'LEN' => length($struct) }, 
-      'FIELDS'    => { 'TYPE' => int(RFCTABLE),
-	    'VALUE' => [],
-	    'INTYPE' => RFCTYPE_BYTE,
-	    'LEN' => 83 } 
-    }; 
-  }
+#  my $iface;
+#  if ($self->{'UNICODE'}){
+#    $iface = {
+#      'TABNAME' => { 'TYPE' => int(RFCEXPORT),
+#	    'VALUE' => $struct,
+#	    'INTYPE' => RFCTYPE_CHAR,
+#	    'LEN' => length($struct) }, 
+#      'FIELDS'    => { 'TYPE' => int(RFCTABLE),
+#	    'VALUE' => [],
+#	    'INTYPE' => RFCTYPE_BYTE,
+#	    'LEN' => 93 } 
+#    };
+#  } else {
+#    $iface = {
+#      'TABNAME' => { 'TYPE' => int(RFCEXPORT),
+#	    'VALUE' => $struct,
+#	    'INTYPE' => RFCTYPE_CHAR,
+#	    'LEN' => length($struct) }, 
+#      'FIELDS'    => { 'TYPE' => int(RFCTABLE),
+#	    'VALUE' => [],
+#	    'INTYPE' => RFCTYPE_BYTE,
+#	    'LEN' => 83 } 
+#    }; 
+#  }
 
-  my $str = MyRfcCallReceive( $self->{'HANDLE'},
-			      $self->{'UNICODE'} ? "RFC_GET_UNICODE_STRUCTURE" : 
-                                 "RFC_GET_STRUCTURE_DEFINITION_P",
-			      $iface );
-  
-  if ($str->{'__RETURN_CODE__'} ne '0') {
-  	$self->{ERROR} = $str->{'__RETURN_CODE__'};
-	  return undef;
-  }
+#  my $str = MyRfcCallReceive( $self->{'HANDLE'},
+#			      $self->{'UNICODE'} ? "RFC_GET_UNICODE_STRUCTURE" : 
+#                                 "RFC_GET_STRUCTURE_DEFINITION_P",
+#			      $iface );
+#  
+#  if ($str->{'__RETURN_CODE__'} ne '0') {
+#  	$self->{ERROR} = $str->{'__RETURN_CODE__'};
+#	  return undef;
+#  }
 
-  
-  $struct = SAP::Struc->new( NAME => $struct, RFCINTTYP => $info->{'RFCINTTYP'}, LINTTYP => $self->{'LINTTYP'} );
-  map {
-      my ($tabname, $field, $pos, $off, $intlen, $decs, $exid );
-      if ($self->{'UNICODE'}){
-        my $rec = $_;
-        #warn "unpack($pack_str) \n";
-        ($tabname, $field, $pos, $exid, $decs, $off, $intlen) =
-         (substr($rec, 0, 30), substr($rec, 30, 30), substr($rec, 60, 4),
-          substr($rec, 64, 1), substr($rec, 68, 4), substr($rec, 72, 4), 
-          substr($rec, 76, 4));
-         #$pos = substr($rec, 0, 30);
-         #$pos = substr($rec, 30, 30);
-         #$pos = substr($rec, 60, 4);
-         #$decs = substr($rec, 68, 4);
-         #$off = substr($rec, 72, 4);
-         #$intlen = substr($rec, 76, 4);
-         ($pos, $off, $intlen, $decs) = 
-             map { unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "V"), $_) }
-                   ($pos, $off, $intlen, $decs);
-      } else {
-        ($tabname, $field, $pos, $off, $intlen, $decs, $exid ) =
-# record structure changes from 3.x to 4.x
-       	  unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
-		         "A30 A30 A4 A6 A6 A6 A" : "A10 A10 A4 A6 A6 A6 A", $_ );
-      }
-      #warn "field: $field - pos: $pos - len: $intlen - offset: $off - dec: $decs \n";
-      $struct->addField( 
-			 NAME     => $field,
- 			 LEN      => $intlen,
-#			 add UNICODE Support
-#      LEN      => ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen) ),
- 			 OFFSET   => $off,
-#      OFFSET   => ( $self->{'UNICODE'} ? int($off)/2 : int($off) ),
-			 DECIMALS => $decs,
-			 INTYPE   => $exid
-			 )
-      }  ( @{ $str->{'FIELDS'} } );
+  my $data = MyGetStructure($self->{'HANDLE'}, $struct);
+	my $tablen = pop(@{$data});
+	if ($self->unicode){
+	  $tablen = $tablen->{'b2len'};
+	} else {
+	  $tablen = $tablen->{'tablength'};
+	}
+
+  $struct = SAP::Struc->new( NAME => $struct, RFCINTTYP => $info->{'RFCINTTYP'}, LINTTYP => $self->{'LINTTYP'}, LEN => $tablen );
+#  map {
+#      my ($tabname, $field, $pos, $off, $intlen, $decs, $exid );
+#      if ($self->{'UNICODE'}){
+#        my $rec = $_;
+#        #warn "unpack($pack_str) \n";
+#        ($tabname, $field, $pos, $exid, $decs, $off, $intlen) =
+#         (substr($rec, 0, 30), substr($rec, 30, 30), substr($rec, 60, 4),
+#          substr($rec, 64, 1), substr($rec, 68, 4), substr($rec, 72, 4), 
+#          substr($rec, 76, 4));
+#         #$pos = substr($rec, 0, 30);
+#         #$pos = substr($rec, 30, 30);
+#         #$pos = substr($rec, 60, 4);
+#         #$decs = substr($rec, 68, 4);
+#         #$off = substr($rec, 72, 4);
+#         #$intlen = substr($rec, 76, 4);
+#         ($pos, $off, $intlen, $decs) = 
+#             map { unpack(($self->{'RFCINTTYP'} eq 'BIG' ? "N" : "V"), $_) }
+#                   ($pos, $off, $intlen, $decs);
+#      } else {
+#        ($tabname, $field, $pos, $off, $intlen, $decs, $exid ) =
+## record structure changes from 3.x to 4.x
+#       	  unpack( ( $info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ) ?
+#		         "A30 A30 A4 A6 A6 A6 A" : "A10 A10 A4 A6 A6 A6 A", $_ );
+#      }
+#      #warn "field: $field - pos: $pos - len: $intlen - offset: $off - dec: $decs \n";
+#      $struct->addField( 
+#			 NAME     => $field,
+# 			 LEN      => $intlen,
+##			 add UNICODE Support
+##      LEN      => ( $self->{'UNICODE'} ? int($intlen)/2 : int($intlen) ),
+# 			 OFFSET   => $off,
+##      OFFSET   => ( $self->{'UNICODE'} ? int($off)/2 : int($off) ),
+#			 DECIMALS => $decs,
+#			 INTYPE   => $exid
+#			 )
+#      }  ( @{ $str->{'FIELDS'} } );
   #$struct->{'SYSINFO'} = $info;
+  map {
+	    if ($self->unicode) {
+        $struct->addField( 
+			   NAME     => $_->{'fieldname'},
+ 			   LEN      => $_->{'len1'},
+ 			   OFFSET   => $_->{'off1'},
+			   DECIMALS => $_->{'dec'},
+			   INTYPE   => $_->{'exid'},
+			   EXID     => $_->{'exid'},
+ 			   LEN2     => $_->{'len2'},
+ 			   OFFSET2  => $_->{'off2'},
+ 			   LEN4     => $_->{'len4'},
+ 			   OFFSET4  => $_->{'off4'}
+			   )
+			} else {
+        $struct->addField( 
+			   NAME     => $_->{'fieldname'},
+ 			   LEN      => $_->{'len'},
+ 			   OFFSET   => $_->{'off'},
+			   DECIMALS => $_->{'dec'},
+			   EXID     => $_->{'exid'},
+			   INTYPE   => $_->{'exid'}
+			   )
+			 }
+      }  ( @{$data} );
 
+  #print STDERR Dumper($struct)."\n";
   # save the structure to the cache
   if ($CACHE){
     open(STR, ">$CACHE/structs/".$struct->name().".txt") or
@@ -725,12 +893,17 @@ sub structure {
     print STR Dumper($struct);
     close STR;
   }
+
+  my $type = MyInstallStructure($self->{'HANDLE'}, {NAME => $struct->name, DATA => $struct->fieldinfo});
+#	print STDERR "Structure: ".$struct->name." type: $type \n";
+  $struct->StrType($type);
+
   return $struct;
 
 }
 
 #  get the handle
-sub handle{
+sub handle {
 
   my $self = shift;
   return  $self->{'HANDLE'};
@@ -738,18 +911,31 @@ sub handle{
 }
 
 
+
 #  test the open connection status
-sub is_connected{
+sub is_connected {
 
   my $self = shift;
-  my $ping = MyRfcCallReceive( $self->{'HANDLE'}, "RFC_PING", {} );
-  
-  if ($ping->{'__RETURN_CODE__'} eq '0') {
+
+#	my $ping;
+#	if ($self->unicode){
+#    #$ping = MyRfcCallReceive( $self->{'HANDLE'}, $self->u8to16("RFC_PING"), {} );
+#    $ping = MyRfcCallReceive( $self->{'HANDLE'}, do_8to16("RFC_PING"), {} );
+#	} else {
+#    $ping = MyRfcCallReceive( $self->{'HANDLE'}, "RFC_PING", {} );
+#  }
+#  if ($ping->{'__RETURN_CODE__'} eq '0') {
+#  	return 1;
+#  } else {
+#  	$self->{'ERROR'} = $ping->{'__RETURN_CODE__'};
+#  	return undef;
+#  }
+
+  if (MyRfcPing($self->{'HANDLE'})){
   	return 1;
-  } else {
-  	$self->{'ERROR'} = $ping->{'__RETURN_CODE__'};
+	} else {
   	return undef;
-  }
+	}
   
 }
 
@@ -760,33 +946,56 @@ sub sapinfo {
   my $output = "";
 
   my $self = shift;
+  # delete  $self->{'SYSINFO'};
 
   if ( ! exists $self->{'SYSINFO'} ){
     die "SAP Connection Not Open for SYSINFO "
       if ! is_connected( $self );
-    my $if = {   'RFCSI_EXPORT' => {
-				      'TYPE' => int(RFCIMPORT),
-				      'VALUE' => '',
-				      'INTYPE' => RFCTYPE_CHAR,
-				      'LEN' => 200 }
-				  };
-    my $sysinfo = MyRfcCallReceive( $self->{'HANDLE'}, "RFC_SYSTEM_INFO", $if );
-    if ($sysinfo->{'__RETURN_CODE__'} ne '0') {
-  	  $self->{ERROR} = $sysinfo->{'__RETURN_CODE__'};
-	    return {};
-    }
+#    my $if;
+##		if ($self->unicode){
+##      $if = {   'RFCSI_EXPORT' => {
+##                #'NAME' => $self->u8to16('RFCSI_EXPORT'),
+##                'NAME' => do_8to16('RFCSI_EXPORT'),
+##				        'TYPE' => int(RFCIMPORT),
+##				        'VALUE' => '',
+##				        'INTYPE' => RFCTYPE_CHAR,
+##				        'LEN' => 400 }
+##				  };
+##		} else {
+#      $if = {   'RFCSI_EXPORT' => {
+#				        'TYPE' => int(RFCIMPORT),
+#				        'VALUE' => '',
+#				        'INTYPE' => RFCTYPE_CHAR,
+#				        'LEN' => $self->unicode ? 400 : 200 }
+#				  };
+##		}
+#    my $sysinfo = MyRfcCallReceive( $self->{'HANDLE'}, 
+##		                 #($self->unicode ? $self->u8to16("RFC_SYSTEM_INFO") : "RFC_SYSTEM_INFO"),
+##		                 ($self->unicode ? do_8to16("RFC_SYSTEM_INFO") : "RFC_SYSTEM_INFO"),
+#		                 "RFC_SYSTEM_INFO",
+#										 $if );
+#    if ($sysinfo->{'__RETURN_CODE__'} ne '0') {
+#  	  $self->{ERROR} = $sysinfo->{'__RETURN_CODE__'};
+#	    return {};
+#    }
+    my $rfcsi = MySysinfo($self->{'HANDLE'});
     my $pos = 0;
     my $info = {};
-    my $rfcsi = $sysinfo->{'RFCSI_EXPORT'};
+		#map { print STDERR "key: $_ => ".length($sysinfo->{$_})."\n" } keys %$sysinfo;
+#    my $rfcsi = $sysinfo->{'RFCSI_EXPORT'};
+#		if ($self->unicode){
+#		  #$rfcsi = $self->u16to8($rfcsi);
+#		  $rfcsi = do_16to8($rfcsi);
+#		}
     map {
 	  $info->{$_->{'NAME'}} = substr($rfcsi,$pos, $_->{'LEN'});
 	  $pos += $_->{'LEN'}
             } @SYSINFO;
-    $self->{'RETURN'} = $return;
+    $self->{'RETURN'} = 0;
     $self->{'SYSINFO'} = $info;
 
 #   add UNICODE Support
-    $self->{'UNICODE'} = 1 if ( int($info->{'RFCCHARTYP'}) >> 1  == 2051 );
+#    $self->{'UNICODE'} = 1 if ( int($info->{'RFCCHARTYP'}) >> 1  == 2051 );
   }
   return  $self->{'SYSINFO'};
 }
@@ -804,13 +1013,15 @@ sub callrfc {
      if ! is_connected( $self );
 
   my $result = MyRfcCallReceive( $self->{'HANDLE'}, $iface->name, $iface->iface );
+
+#	print STDERR "AFTER CALL: ".Dumper($result)."\n";
   
   if ( $result->{'__RETURN_CODE__'} ne "0" ){
       $self->{'ERROR'} = $result->{'__RETURN_CODE__'};
       die "RFC call failed: ".$result->{'__RETURN_CODE__'};
   } else {
-      map {
-      	  $_->intvalue( intoext( $_, $result->{$_->name()} ) )
+      map { 
+      	  $_->intvalue(intoext($_, $result->{$_->name()})) unless $_->type() == RFCEXPORT
 	          } ( $iface->parms() );
       $iface->emptyTables();
       map { my $tab = $_;
@@ -840,29 +1051,36 @@ sub getTicket {
 
 # convert internal data types to externals
 sub intoext{
-    my $parm = shift;
-    my $value = shift || "";
+  my $parm = shift;
+  my $value = shift || "";
 
-    if ( $parm->intype() == RFCTYPE_INT ){
-	return unpack("N", $value);
-    } elsif ( $parm->intype() == RFCTYPE_FLOAT ){
-	return unpack("d",$value);
-    } elsif ( $parm->intype() == RFCTYPE_BCD ){
+  if ( $parm->intype() == RFCTYPE_INT ){
+	  return unpack("l", $value);
+  } elsif ( $parm->intype() == RFCTYPE_FLOAT ){
+	  return unpack("d",$value);
+	} elsif ( $parm->intype() == RFCTYPE_INT2 ){ 
+	  # Short INT2
+    return unpack("S",$value);
+  } elsif ( $parm->intype() == RFCTYPE_INT1 ){
+    # INT1
+    return ord($value);
+  } elsif ( $parm->intype() == RFCTYPE_BCD ){
 	#  All types of BCD
-	$value = "0" unless $value;
-	my @flds = split(//, unpack("H*",$value));
-	if ( $flds[$#flds] eq 'd' ){
-	    splice( @flds,0,0,'-');
-	} else {
-	    splice( @flds,0,0,'+');
-	}
-	pop( @flds );
-	splice(@flds,$#flds - ( $parm->decimals - 1 ),0,'.')
-	    if $parm->decimals > 0;
-	return join('', @flds);
-    } else {
-	return $value;
-    }
+	  $value = "0" unless $value;
+	  my @flds = split(//, unpack("H*",$value));
+		#print STDERR "BCD VALUE ".$parm->name.": ".unpack("H*",$value)."\n";
+	  if ( $flds[$#flds] eq 'd' ){
+	      splice( @flds,0,0,'-');
+	  } else {
+	      splice( @flds,0,0,'+');
+  	}
+  	pop( @flds );
+  	splice(@flds,$#flds - ( $parm->decimals - 1 ),0,'.')
+  	    if $parm->decimals > 0;
+  	return join('', @flds);
+  } else {
+	  return $value;
+  }
 
 }
 
@@ -1178,6 +1396,86 @@ executable that comes with all SAP R/3 server implementations:
   With that the Method it is possible to launch a program. This feature is
   hevealy used by SAP DMS (Document Management System) which sends and
   receives Files from and to the client.
+
+
+=head2 register()
+
+This is the equivalent to accept() but allows you to process the 
+main event loop one step at a time.  This must be used with process() and 
+close() to mange the loop processing manually.
+example that implements the same functionality as the standard rfcexec
+executable that comes with all SAP R/3 server implementations:
+
+  use SAP::Rfc;
+  use SAP::Iface;
+  use Data::Dumper;
+
+  # this enables the user to call die "MY_CUSTOM_ERROR"
+  # and only the string MY_CUSTOMER_ERROR is returned to SAP instead of
+  # the whole die text + line number etc.
+  $SAP::Rfc::EXCEPTION_ONLY = 1;
+
+  # construct the Registered RFC conection
+  my $rfc = new SAP::Rfc(
+                TPNAME   => 'wibble.rfcexec',
+                GWHOST   => '172.22.50.1',
+                GWSERV   => '3300',
+                TRACE    => '1' );
+
+  # Build up the interface definition that the ABAP code is going to
+  # call including the subroutine reference that will be invoked
+  # on handling incoming requests
+  my $iface = new SAP::Iface(NAME => "RFC_REMOTE_PIPE", HANDLER => \&do_remote_pipe);
+
+  $iface->addParm( TYPE => $iface->RFCIMPORT,
+                   INTYPE => $iface->RFCTYPE_CHAR,
+                   NAME => "COMMAND",
+                   LEN => 256);
+
+  $iface->addParm( TYPE => $iface->RFCIMPORT,
+                   INTYPE => $iface->RFCTYPE_CHAR,
+                   NAME => "READ",
+                   LEN => 1);
+
+  $iface->addTab( NAME => "PIPEDATA",
+                  LEN => 80);
+
+  # add the interface definition to the available list of RFCs
+  $rfc->iface($iface);
+
+  # kick off the main event loop - register the RFC connection
+  # and wait for incoming calls
+  my $handle = $rfc->register();
+
+  while ($rc = $rfc->process($handle, $wait)){
+	  if ($rc != 0){
+		  warn "Eeek! it went wrong!\n";
+			exit(1);
+		}
+    ...
+	}
+
+  # the callback subroutine
+  # the subroutine receives one argument of an SAP::Iface
+  # object that has been populated with the inbound data
+  # the callback must return "TRUE" or this is considered
+  # an EXCEPTION
+  sub do_remote_pipe {
+    my $iface = shift;
+    warn "Running do_remote_pipe...\n";
+    my $ls = $iface->COMMAND;
+    $iface->PIPEDATA( [ map { pack("A80",$_) } split(/\n/, `$ls`) ]);
+    warn "   Data: ".Dumper($iface->PIPEDATA);
+    # force an error
+    die "MY_CUSTOM_ERROR" unless $iface->PIPEDATA;
+    return 1;
+  }
+
+  If register() returns a value less than 0 then it failed.
+	If process() returns a value other than 0 then it failed.
+  register() takes no parameters, but returns the created RFC handle.
+  process() takes two parameters - $handle typically returned from register(), 
+	and $wait.
 
 
 =head2 CACHING

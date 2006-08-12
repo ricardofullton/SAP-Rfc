@@ -36,7 +36,7 @@ map {my($key,$val) = split(/=/,$_); $EMBED_MANIFEST = 1 if $key eq "EMBED_MANIFE
 #    sapinfo.c -o sapinfo -lrfc -lsocket -lnsl -ldl -lm -lw
 
 # This SHOULD work for most cases (well at least Win32, and Linux)
-my $ADDITIONAL_LIBS = '-lm -ldl -lpthread ';
+my $ADDITIONAL_LIBS = '-lm -ldl -lpthread -lc ';
 
 # See lib/ExtUtils/MakeMaker.pm for details of how to influence
 # the contents of the Makefile that is written.
@@ -47,7 +47,14 @@ use File::Basename qw(dirname basename);
 use Getopt::Long;
 use vars qw($opt_source $opt_addlibs $opt_help);
 
-&GetOptions("source=s", \$opt_source, "addlibs=s", \$opt_addlibs, "help", \$opt_help);
+&GetOptions("source=s", \$opt_source, "addlibs=s", \$opt_addlibs, "unicode", \$opt_unicode, "help", \$opt_help);
+
+$ADD_FLAGS = "";
+if ($opt_unicode){
+  print "O-ohhh -unicode!!\n";
+	$ADDITIONAL_LIBS .= '-lsapu16 -lstdc++';
+	$ADD_FLAGS = " -DSAP_RFC_TIME -DSAPwithUNICODE -DSAPonLIN -DSAPonUNIX ";
+}
 
 # spew forth the help
 if ($opt_help){
@@ -81,6 +88,13 @@ right direction:
   be passed in at link time - this can be anything
   that you would put in LDFLAGS.
   By default this is ' -lm -ldl -lpthread '
+
+(3) --unicode
+  This tells me that you want to compile in unicode 
+  support - to do this you must have the unicode version of the RFC
+  library specifically librfcum.xx or librfcu.a and the libsapu16 
+  library.
+  (good luck!!).
 
 Example:
 
@@ -117,7 +131,11 @@ if (@CANDIDATE == 1) {
     my($dir, $inc_dir, $lib) = @{$CANDIDATE[0]};
     print "Found $lib installed in $dir\n";
 } elsif (@CANDIDATE > 1) {
-    print "Found the following librfc (or librfccm) installations:\n";
+    if ($opt_unicode){
+      print "Found the following librfcu (or librfcum) installations:\n";
+		} else {
+      print "Found the following librfc (or librfccm) installations:\n";
+		}
     for (@CANDIDATE) {
     my($dir, $inc_dir, $lib) = @$_;
       print "\t$lib\t$dir\n";
@@ -216,7 +234,8 @@ WriteMakefile(
     'LINKTYPE'    => 'dynamic',
     'VERSION_FROM'    => 'Rfc.pm',
     'NAME'    => 'SAP::Rfc',
-     DEFINE => '-D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE'),
+#     DEFINE => ' -D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE')." $ADD_FLAGS ",
+     DEFINE => '-g -D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE')." $ADD_FLAGS ",
 
     'LIBS'      => ["$ADDITIONAL_LIBS $RFC_LIB $LIBS"],
     'INC'    => "-I".$RFC_INC,
@@ -227,6 +246,22 @@ sub MY::makefile { '' }
 
 sub MY::processPL { '' }
 
+
+sub MY::c_o {
+  my $self = shift; 
+  my $section = $self->MM::c_o;
+  if ($opt_unicode){
+    $section =~ s/(\$\*\.i)/$1i\n\t\$\(FULLPERL\) u16lit\.pl \-le \$\(BASEEXT\)\.ii/s;
+		#.c$(OBJ_EXT):
+		#        $(CCCMD) $(CCCDLFLAGS) "-I$(PERL_INC)" $(PASTHRU_DEFINE) $(DEFINE) $*.c
+		#
+    $section =~ s/(\.c\$\(OBJ_EXT\)\:.*? \$\*\.)c/$1i/s;
+    #print STDERR "c_o: $section\n";
+	}
+  return $section;
+}
+
+
 # add the manifest for win32
 sub MY::dynamic_lib { 
   my $self = shift; 
@@ -236,11 +271,16 @@ sub MY::dynamic_lib {
 	  $section .= "\tmt.exe -outputresource:Rfc.dll;2 -manifest Rfc.dll.manifest\n";
 	  $section .= "\tcd ..\\..\\..\\..\\..\n";
 	}
+  if ($opt_unicode){
+	  $section =~ s/(\$\(INST_DYNAMIC\)\: )/$1\$\(BASEEXT\)\.i /s;
+	#  print STDERR "dynamic_lib: $section\n";
+	}
 	return $section;
 }
 
 
 # Get input values for testing
+unless ($ENV{ASHOST}){
 print "\n\n\n";
 print "Welcome to The SAP::Rfc Object oriented Programming Interface for \n";
 print "performing RFC calls to an SAP R\/3 System\.\n";
@@ -278,16 +318,17 @@ ENDOFTEXT
 
 print "           ---------------- Please Press Enter --------------- \n";
 $x=<>;
+}
 
 print "\nPlease Enter The Following:\n";
 open(FIL,">testconn") or die "cant open parm file: $!";
 open(FILCP,">examples/testconn") or die "cant open parm file: $!";
-&get("ASHOST", "Test SAP System Hostname:","localhost");
-&get("SYSNR", "System Number:","00");
-&get("CLIENT", "Client Number:","000");
-&get("LANG", "Login Language:","en");
-&get("USER", "User Id:","DEVELOPER");
-&get("PASSWD", "Password:","developer");
+&get("ASHOST", "Test SAP System Hostname:",($ENV{ASHOST} ||"localhost"));
+&get("SYSNR", "System Number:",($ENV{SYSNR} || "00"));
+&get("CLIENT", "Client Number:",($ENV{CLIENT} || "000"));
+&get("LANG", "Login Language:",($ENV{SAPLANG} || "en"));
+&get("USER", "User Id:",($ENV{SAPUSER} || "DEVELOPER"));
+&get("PASSWD", "Password:",($ENV{PASSWD} || "developer"));
 &get("TRACE", "Trace Level:","1");
 close FIL;
 close FILCP;
@@ -300,7 +341,7 @@ sub get{
  my $parmdesc = shift;
  my $parmdefault = shift;
  print "Enter $parm - $parmdesc \[$parmdefault\] ";
- my $val = <>;
+ my $val = <> unless $ENV{ASHOST};
  chomp $val;
  $val =~ s/^\s*?(\S+)\s*?$/$1/;
  if ( $val !~ m/^$/ ){
@@ -310,6 +351,7 @@ sub get{
    print FIL "$parm\t$parmdefault\n";
    print FILCP "$parm\t$parmdefault\n";
  };
+ print "\n" if $ENV{ASHOST};
 
 }
 
@@ -337,14 +379,24 @@ sub Candidate {
     my $libd = (-d "$dir/out32dll") ? 'out32dll' : 'lib';
     if (opendir(LIBDIR, "$dir/$libd")) {
     while (defined($_ = readdir(LIBDIR))) {
-        push(@libs, 'rfc32') if /rfc32/i;
-        push(@libs, 'rfccm') if /^librfccm/;
-        push(@libs, 'rfc') if /^librfc/;
+		    if ($opt_unicode){
+          push(@libs, 'rfcum') if /^librfcum/;
+          push(@libs, 'rfcu') if /^librfcu\./;
+				} else {
+          push(@libs, 'rfc32') if /rfc32/i;
+          push(@libs, 'rfccm') if /^librfccm/;
+          push(@libs, 'rfc') if /^librfc/;
+				}
     }
     closedir(LIBDIR);
     }
-    warn "$dir/lib does not seem to contain the librfc (or librfccm) library files\n"
-    unless scalar @libs;
+		if ($opt_unicode){
+      warn "$dir/lib does not seem to contain the librfcu (or librfcum) library files\n"
+        unless scalar @libs;
+		} else {
+      warn "$dir/lib does not seem to contain the librfc (or librfccm) library files\n"
+        unless scalar @libs;
+		}
     @libs = reverse sort @libs;
 
     [$dir, $inc_dir, shift @libs];

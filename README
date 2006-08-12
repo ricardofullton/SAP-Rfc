@@ -124,7 +124,7 @@ In brief, the following should work on most systems:
 Help on the build process is available by doing:
         perl Makefile.PL --help
 
-and it say:
+and it says:
 
 The whole trouble with the build process is one 
 of determining what your OS is, and which RFC
@@ -148,9 +148,37 @@ right direction:
   that you would put in LDFLAGS.
   By default this is ' -lm -ldl -lpthread '
 
+
+(3) --unicode
+  This tells me that you want to compile in unicode 
+  support - to do this you must have the unicode version of the RFC
+  library specifically librfcum.xx or librfcu.a and the libsapu16 
+  library.
+  (good luck!!).
+
 Example:
 
 perl Makefile.PL --source /opt/rfcsdk --addlibs '-lsomethingwacky'
+
+
+UNICODE
+========
+
+If you really really really need it - unicode support can be built 
+BUT it must be done using the librfcum eg. the special unicode version
+of the RFCSDK.
+Get the latest as provided by service.sap.com/connectors => see OSS                                    
+note 413708.
+
+This has only ever been tested on Linux, and is only ever likely to work 
+on systems that have iconv and are Little Endian in its current form.
+
+To build it you need something like:                                                                        
+perl Makefile.PL --source=/usr/sap/rfcsdk-640-unicode --unicode                                             
+
+Please email directly if you have problems, and are willing to help 
+with testing (especially for other platforms) => piers@cpan.org.
+
 
 
 VERSION Info supplied by Others

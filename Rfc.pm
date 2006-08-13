@@ -17,17 +17,17 @@ use Data::Dumper;
 
 #use utf8;
 
-use vars qw(@ISA $VERSION @EXPORT_OK);
-$VERSION = '1.45';
+use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
+$VERSION = '1.46';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
 my $EXCEPTION_ONLY = 0;
 
 # The RFC structure cache
-my $USECACHE = "";
-my $DEFAULT_CACHE = ".rfc_cache/";
-my $CACHE = "";
+$USECACHE = "";
+$DEFAULT_CACHE = ".rfc_cache/";
+$CACHE = "";
 
 
 sub dl_load_flags { $^O =~ /hpux|aix/ ? 0x00 : 0x01 }
@@ -231,7 +231,7 @@ sub new {
   if ($USECACHE){
     $CACHE = $DEFAULT_CACHE unless $CACHE;
   }
-    
+
   if ($CACHE){
     mkdir $CACHE unless -d $CACHE;
     mkdir $CACHE.'/structs' unless -d $CACHE.'/structs';
@@ -497,6 +497,11 @@ sub discover {
 	  eval($iface);
     $iface1->{'SYSINFO'} = $info;
     #$iface1->{'RFCINTTYP'} = $info->{'RFCINTTYP'};
+		foreach my $parm ($iface1->parms(), $iface1->tabs()){
+		  next unless $parm->structure;
+		  $parm->structure($self->structure($parm->structure->name()));
+			$parm->intype($parm->structure->StrType());
+		}
 	  return $iface1;
   }
 
@@ -761,6 +766,7 @@ sub structure {
   };
   my $info = $self->sapinfo();
 
+  #warn "digging up structure: $struct\n";
   if ($CACHE && -f $CACHE."/structs/".$struct.".txt"){
     my $struct1;
 	  open(STR, "<$CACHE/structs/".$struct.".txt") or 
@@ -772,6 +778,7 @@ sub structure {
 	  $struct1->{'LINTTYP'} = $self->{'LINTTYP'};
     #$struct1->{'SYSINFO'} = $info;
     my $type = MyInstallStructure($self->{'HANDLE'}, {NAME => $struct1->name, DATA => $struct1->fieldinfo});
+		#warn "reinstalled: $type\n";
     $struct1->StrType($type);
 	  return $struct1;
   }

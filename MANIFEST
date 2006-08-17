@@ -16,7 +16,7 @@ examples/makesoap.pl
 examples/reports.pl
 examples/getticket.pl
 examples/reg.pl
-examples/reg.pl
+examples/reg_test.pl
 examples/bank.pl
 examples/curr.pl
 examples/cust.pl

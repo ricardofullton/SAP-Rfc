@@ -275,3 +275,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
  - support for either librfccm or librfcum
  - conversions built around UTF-8 -> UTF16 -> UTF-8 characterset translation
  - special thanks to Gregor Wolf, and Jouke Visser for all their help in testing
+
+1.47 Thu Aug 17 09:41:33 BST 2006
+ - include unicode support for registered RFC programs

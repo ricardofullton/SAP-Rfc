@@ -18,7 +18,7 @@ use Data::Dumper;
 #use utf8;
 
 use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
-$VERSION = '1.46';
+$VERSION = '1.47';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -396,7 +396,7 @@ sub Handler {
   map {
 	  $_->intvalue( intoext( $_, $data->{$_->name()} ) )
 	  } ( $iface->parms() );
-      $iface->emptyTables();
+    $iface->emptyTables();
   map { my $tab = $_;
 	    map { $tab->addRow( $_ ) }
 	        ( @{$data->{$tab->name()}} )
@@ -405,9 +405,9 @@ sub Handler {
   my $result = "";
   eval { $result = &$handler( $iface, $tid ); };
   if ($@ || ! $result){
-	my ($err) =  ($SAP::Rfc::EXCEPTION_ONLY ? ( $@ =~ /^(\w+)\s/) : $@);
+  	my ($err) =  ($SAP::Rfc::EXCEPTION_ONLY ? ( $@ =~ /^(\w+)\s/) : $@);
 
-	$result = { '__EXCEPTION__' => "$err" || "handler exec failed" };
+	  $result = { '__EXCEPTION__' => "$err" || "handler exec failed" };
   } else {
         $result = $iface->iface;
   }

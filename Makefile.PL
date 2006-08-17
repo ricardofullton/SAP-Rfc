@@ -235,7 +235,7 @@ WriteMakefile(
     'VERSION_FROM'    => 'Rfc.pm',
     'NAME'    => 'SAP::Rfc',
 #     DEFINE => ' -D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE')." $ADD_FLAGS ",
-     DEFINE => '-g -D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE')." $ADD_FLAGS ",
+     DEFINE => '-g -Wall -D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE')." $ADD_FLAGS ",
 
     'LIBS'      => ["$ADDITIONAL_LIBS $RFC_LIB $LIBS"],
     'INC'    => "-I".$RFC_INC,

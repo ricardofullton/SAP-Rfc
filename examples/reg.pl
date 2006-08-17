@@ -1,23 +1,11 @@
 #!/usr/bin/perl
-
 use lib '../blib/lib';
 use lib '../blib/arch';
+use lib './blib/lib';
+use lib './blib/arch';
 use SAP::Rfc;
 use SAP::Iface;
 use Data::Dumper;
-
-
-use DBI qw(:sql_types);
-use vars qw($DEBUG $DBH);
-$DEBUG = 1;
-
-my $config = {
-       'DB' => 'mysql',
-       'DBName' => 'mysql',
-       'DBHost' => 'tool00.bydeluxe.net',
-       'DBUser' => 'root',
-       'DBPasswd' => 'mental',
-       };
 
 
 #   Register an external program to provide outbound
@@ -26,18 +14,15 @@ my $config = {
 print "VERSION: ".$SAP::Rfc::VERSION ."\n";
 $SAP::Rfc::EXCEPTION_ONLY = 1;
 print "EXCEPTION: ".$SAP::Rfc::EXCEPTION_ONLY ."\n";
-#exit 0;
 
 
 my $rfc = new SAP::Rfc(
               TPNAME   => 'wibble.rfcexec',
-              GWHOST   => '172.22.50.1',
-              #GWHOST   => '172.22.50.76',
-              i#GWHOST   => 'seahorse.local.net',
+              GWHOST   => 'seahorse.local.net',
               GWSERV   => '3300',
               TRACE    => '1' );
 
-my $iface = new SAP::Iface(NAME => "RFC_DEMO", HANDLER => \&do_demo);
+my $iface = new SAP::Iface(NAME => "RFC_DEMO", HANDLER => \&do_demo, UNICODE => $rfc->unicode);
 $iface->addParm( TYPE => $iface->RFCEXPORT,
                  INTYPE => $iface->RFCTYPE_CHAR,
                  NAME => "EXP1",
@@ -50,12 +35,26 @@ $iface->addParm( TYPE => $iface->RFCIMPORT,
                  INTYPE => $iface->RFCTYPE_CHAR,
                  NAME => "IMP1",
                  LEN => 1);
+my $tab1str = SAP::Struc->new( NAME => "TAB1STRUCT");
+$tab1str->addField(
+         NAME     => "LINE",
+         LEN      => 200,
+         OFFSET   => 0,
+         DECIMALS => 0,
+         EXID     => "C",
+         INTYPE   => "C",
+         LEN2     => 400,
+         OFFSET2  => 0,
+         LEN4     => 800,
+         OFFSET4  => 0,
+			  );
 $iface->addTab( NAME => "TAB1",
-                LEN => 200);
-
+                LEN => 200,
+                INTYPE => RFCTYPE_CHAR,
+								STRUCTURE => $tab1str );
 $rfc->iface($iface);
 
-my $iface = new SAP::Iface(NAME => "RFC_REMOTE_PIPE", HANDLER => \&do_remote_pipe);
+my $iface = new SAP::Iface(NAME => "RFC_REMOTE_PIPE", HANDLER => \&do_remote_pipe, UNICODE => $rfc->unicode);
 $iface->addParm( TYPE => $iface->RFCIMPORT,
                  INTYPE => $iface->RFCTYPE_CHAR,
                  NAME => "COMMAND",
@@ -64,11 +63,25 @@ $iface->addParm( TYPE => $iface->RFCIMPORT,
                  INTYPE => $iface->RFCTYPE_CHAR,
                  NAME => "READ",
                  LEN => 1);
+my $pipestr = SAP::Struc->new( NAME => "PIPERESULT");
+$pipestr->addField(
+         NAME     => "LINE",
+         LEN      => 80,
+         OFFSET   => 0,
+         DECIMALS => 0,
+         EXID     => "C",
+         INTYPE   => "C",
+         LEN2     => 160,
+         OFFSET2  => 0,
+         LEN4     => 320,
+         OFFSET4  => 0,
+			  );
 $iface->addTab( NAME => "PIPEDATA",
-                LEN => 80);
+                LEN => $rfc->unicode ? 160 : 80,
+                INTYPE => RFCTYPE_CHAR,
+								STRUCTURE => $pipestr);
 
 $rfc->iface($iface);
-
 
 print " START: ".scalar localtime() ."\n";
 
@@ -77,43 +90,31 @@ $rfc->accept(\&do_something, 5);
 warn "ERR: ".$rfc->error ."\n";
 
 sub do_something {
-
   my $thing = shift;
-
   warn "Running do_something ...\n";
   warn "Got: $thing \n";
-
-  #return $iface;
-
 }
 
 
 sub do_demo {
-
   my $iface = shift;
-
   warn "Running do_demo...\n";
-
   return $iface;
-
 }
 
 sub do_remote_pipe {
-
   my $iface = shift;
   warn "Running do_remote_pipe...\n";
   my $ls = $iface->COMMAND;
   $iface->PIPEDATA( [ map { pack("A80",$_) } split(/\n/, `$ls`) ]);
-  #warn "   Data: ".Dumper($iface->PIPEDATA);
   #die "MY_CUSTOM_ERROR with some other text";
   warn "called $$\n";
   return 1;
-
 }
 
 
-sub debug{
+sub debug {
   return unless $DEBUG;
-    print  STDERR scalar localtime().": ", @_, "\n";
-    }
+  print  STDERR scalar localtime().": ", @_, "\n";
+}
 

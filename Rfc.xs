@@ -205,7 +205,11 @@ RFC_TYPEHANDLE      handleOfRFCSI;
 
 
 /* name of installed function for global callback in tRFC */
+#ifdef SAPwithUNICODE
+SAP_UC * name_user_global_server = cU("%%USER_GLOBAL_SERVER");
+#else
 char name_user_global_server[31] = "%%USER_GLOBAL_SERVER";
+#endif
 
 /* global hash of interfaces */
 SV* global_sv_ifaces;
@@ -236,9 +240,9 @@ static void DLL_CALL_BACK_FUNCTION  TID_commit(RFC_TID tid);
 static void DLL_CALL_BACK_FUNCTION  TID_confirm(RFC_TID tid);
 static void DLL_CALL_BACK_FUNCTION  TID_rollback(RFC_TID tid);
 static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE rfc_handle);
-static char *user_global_server_docu(void);
+static SAP_UC *user_global_server_docu(void);
 static RFC_RC install_docu    ( RFC_HANDLE handle );
-static char * do_docu_docu( void );
+static SAP_UC * do_docu_docu( void );
 
 /* store a reference to the documentation array ref */
 SV* sv_store_docu;
@@ -275,6 +279,7 @@ static void * make_space( SV* length ){
 }
 
 
+#ifdef SAPwithUNICODE
 /* create a parameter space and zero it */
 static void * make_space2( int length ){
 
@@ -290,6 +295,7 @@ static void * make_space2( int length ){
     //*(ptr+(length)) = '\0';
     return ptr;
 }
+#endif
 
 
 /* copy the value of a parameter to a new pointer variable to be passed back onto the 
@@ -297,7 +303,9 @@ static void * make_space2( int length ){
 static void * make_copy( SV* value, SV* length ){
 
     char * ptr;
-    int len = SvIV( length );
+    int len;
+		
+		len = SvIV( length );
 	  //fprintf(stderr, "make_copy ...\n");
     
     ptr = malloc( len + 1 );
@@ -314,33 +322,15 @@ static void * make_copy( SV* value, SV* length ){
 
 
 /* copy the value of a parameter to a new pointer variable to be passed back onto the 
-   parameter pointer argument */
-static void * make_copy2( SV* value, int length ){
-
-    char * ptr;
-	  //fprintf(stderr, "make_copy2 ...\n");
-    
-    ptr = malloc( length + 1 );
-    //ptr = (char *) New(0, ptr, length+2, char); /* Perl malloc */
-    if ( ptr == NULL )
-	    return 0;
-    memset(ptr, 0, length + 1);
-    //memset(ptr, 20, length + 1);
-    //*(ptr+(length)) = '\0';
-    //Copy(SvPV( value, length ), ptr, length, char);
-		memcpy(ptr, SvPV(value, length), length);
-    return ptr;
-}
-
-
-/* copy the value of a parameter to a new pointer variable to be passed back onto the 
    parameter pointer argument without the length supplied */
 static void * make_strdup( SV* value ){
 
     char * ptr;
 	  //fprintf(stderr, "make_strdup...\n");
     //int len = strlen(SvPV(value, PL_na));
-    int len = SvCUR(value);
+    int len;
+		
+		len = SvCUR(value);
     
     ptr = malloc( len + 1 );
     //ptr = (char *) New(0, ptr, len+1, char); /* Perl malloc */
@@ -410,7 +400,6 @@ char *u_doconv8to16str(iconv_t iconv_handle, SV *string, int is_target_utf8, int
 	 char * res;
 	 int fsize;
 	 int orig;
-	 int i;
 
 	 //fprintf(stderr, "u_doconv8to16str...\n");
 	 //fprintf(stderr, "converting: %s#%d\n", SvPV(string, SvCUR(string)), SvCUR(string));
@@ -495,7 +484,7 @@ char *u_doconv8to16str(iconv_t iconv_handle, SV *string, int is_target_utf8, int
 				 inbytesleft = 0;
 	       //sv_catpvn(perl_str, obuf, l_obuf - outbytesleft);
 	       //fprintf(stderr, "NOW outbytes: %d l_obuf: %d\n", outbytesleft, l_obuf);
-	       fprintf(stderr, "copying part length: %d\n", l_obuf - outbytesleft);
+	       fprintf(stderr, "copying part length: %d\n", (int) (l_obuf - outbytesleft));
 	       ocursor = obuf;
 	       outbytesleft = l_obuf;
 		     croak("run out of output space for receiving characters: %s",
@@ -800,7 +789,7 @@ SV* MyInit(void) {
 
 
 /* standard error call back handler - installed into connnection object */
-static void  DLL_CALL_BACK_FUNCTION  rfc_error( char * operation ){
+static void  DLL_CALL_BACK_FUNCTION  rfc_error( SAP_UC * operation ){
   RFC_ERROR_INFO_EX  error_info;
   
 	  //fprintf(stderr, "rfc_error...\n");
@@ -822,8 +811,6 @@ SV*  MyBcdToChar(SV* sv_bcd){
 
   char           bcd_char[33];
   unsigned char  bcd_num[16];
-
-  char * ptr;
 
 	  //fprintf(stderr, "BcdToChar...\n");
   bcd_char_len = 4;
@@ -864,9 +851,10 @@ SV*  MyConnect(SV* connectstring){
     RFC_ENV            new_env;
     RFC_HANDLE         handle;
     RFC_ERROR_INFO_EX  error_info;
-		SV* sv_temp;
+#ifdef SAPwithUNICODE
 		char *ptr;
-		int ret;
+		SV* sv_temp;
+#endif
     
 	  //fprintf(stderr, "Connect...\n");
     new_env.allocate = NULL;
@@ -1173,13 +1161,11 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
 #ifdef SAPwithUNICODE
    RFC_RC             rc;
    RFC_HANDLE         handle;
-   SAP_UC *           exception;
    SAP_UC *           name;
 	 SAP_UC             errstr[2048];
 	 char * 						ptr;
    RFC_ERROR_INFO_EX  error_info;
-   int                irow,
-                      a_index,
+   int                a_index,
                       i;
    AV*                data;
    HV*                h_struct;
@@ -1244,7 +1230,7 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
        RfcLastErrorEx( &error_info );
      if (( rc == RFC_EXCEPTION ) ||
          ( rc == RFC_SYS_EXCEPTION )) {
-	     sprintfU(errstr, cU("EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s"), exception, error_info.group, error_info.key, error_info.message );
+	     sprintfU(errstr, cU("GROUP\t%d\tKEY\t%s\tMESSAGE\t%s"), error_info.group, error_info.key, error_info.message );
      } else {
 	     sprintfU(errstr, cU("EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s"), cU("RfcCallReceive"), error_info.group, error_info.key, error_info.message);
      };
@@ -1261,7 +1247,6 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
    RFC_HANDLE         handle;
 	 SAP_UC             errstr[1024];
    SAP_UC *           name;
-   SAP_UC *           exception;
    RFC_ERROR_INFO_EX  error_info;
 	 char rfc_type_c;
 
@@ -1325,7 +1310,7 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
        RfcLastErrorEx( &error_info );
      if (( rc == RFC_EXCEPTION ) ||
          ( rc == RFC_SYS_EXCEPTION )) {
-	     sprintf(errstr, "EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s", exception, error_info.group, error_info.key, error_info.message );
+	     sprintf(errstr, "GROUP\t%d\tKEY\t%s\tMESSAGE\t%s", error_info.group, error_info.key, error_info.message );
      } else {
 	     sprintf(errstr, "EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s", "RfcCallReceive", error_info.group, error_info.key, error_info.message);
      };
@@ -1345,9 +1330,6 @@ SV* MyRfcPing(SV* sv_handle){
 
   RFC_HANDLE         handle;
   RFC_RC             rc;
-  RFC_PARAMETER      myexports[MAX_PARA];
-  RFC_PARAMETER      myimports[MAX_PARA];
-  RFC_TABLE          mytables[MAX_PARA];
   SAP_UC *           exception;
 
   handle = SvIV( sv_handle );
@@ -1576,8 +1558,6 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
    RFC_HANDLE         handle;
    SAP_UC *           function;
    SAP_UC *           exception;
-   char *             ptr;
-   char *             rowptr;
    RFC_ERROR_INFO_EX  error_info;
 
    int                tab_cnt, 
@@ -1586,25 +1566,29 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
                       irow,
                       h_index,
                       a_index,
-                      data_index,
                       i,
-                      j,
-                      k,
-                      itype,
-                      fsize;
+                      j;
 
    AV*                array;
-   AV*                av_data;
-   AV*                av_field;
-   AV*                av_fields;
    HV*                h_parms;
    HV*                p_hash;
    HE*                h_entry;
    SV*                h_key;
    SV*                sv_type;
-   SV*                sv_name;
+#ifdef SAPwithUNICODE
+   int                data_index,
+                      k,
+                      fsize,
+                      itype;
+   char *             ptr;
+   char *             rowptr;
+   AV*                av_data;
+   AV*                av_field;
+   AV*                av_fields;
    SV*                sv_value;
    SV*                sv_temp;
+   SV*                sv_name;
+#endif
 
    HV*                hash = newHV();
 
@@ -2097,7 +2081,11 @@ static int DLL_CALL_BACK_FUNCTION TID_check(RFC_TID tid)
       memset(current_tid, 0, sizeof(current_tid));
       return 1;
     } else {
+#ifdef SAPwithUNICODE
+      sprintfU(current_tid+0, cU("%s"), tid);
+#else
       sprintf(current_tid+0, "%s", tid);
+#endif
       return 0;
     }
 
@@ -2126,7 +2114,11 @@ static void DLL_CALL_BACK_FUNCTION TID_commit(RFC_TID tid)
     PUSHMARK(SP);
 
     /* push the tid onto the stack */
+#ifdef SAPwithUNICODE
+    XPUSHs(u16to8((char *)tid, strlenU(tid)*2));
+#else
     XPUSHs( newSVpvf("%s",tid) );
+#endif
 
     /* stash the stack point */
     PUTBACK;
@@ -2167,7 +2159,11 @@ static void DLL_CALL_BACK_FUNCTION TID_confirm(RFC_TID tid)
     PUSHMARK(SP);
 
     /* push the tid onto the stack */
+#ifdef SAPwithUNICODE
+    XPUSHs(u16to8((char *)tid, strlenU(tid)*2));
+#else
     XPUSHs( newSVpvf("%s",tid) );
+#endif
 
     /* stash the stack point */
     PUTBACK;
@@ -2208,7 +2204,11 @@ static void DLL_CALL_BACK_FUNCTION TID_rollback(RFC_TID tid)
     PUSHMARK(SP);
 
     /* push the tid onto the stack */
+#ifdef SAPwithUNICODE
+    XPUSHs(u16to8((char *)tid, strlenU(tid)*2));
+#else
     XPUSHs( newSVpvf("%s",tid) );
+#endif
 
     /* stash the stack point */
     PUTBACK;
@@ -2233,6 +2233,10 @@ static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE handle)
   RFC_RC rc;
   RFC_FUNCTIONNAME  funcname;
   SV* sv_iface;
+#ifdef SAPwithUNICODE
+	SV* sv_temp;
+#endif
+
 
   rc = RfcGetName(handle, funcname);
   if (rc != RFC_OK)
@@ -2243,9 +2247,14 @@ static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE handle)
   }
 
   /* check at this point for registered functions */
+#ifdef SAPwithUNICODE
+	sv_temp = u16to8((char *) funcname, strlenU(funcname) * 2);
+  if ( ! hv_exists(p_iface_hash, SvPV(sv_temp, PL_na), SvCUR(sv_temp)) ){
+#else
   if ( ! hv_exists(p_iface_hash, funcname, strlen(funcname)) ){
+#endif
        /* fprintf(stderr, "the MISSING Function Name is: %s\n", funcname); */
-       RfcRaise( handle, "FUNCTION_MISSING" );
+       RfcRaise( handle, cU("FUNCTION_MISSING") );
        /* do event callback to intertwine other events */
        /* rc = loop_callback(sv_callback, sv_saprfc); */
        /* XXX   */
@@ -2253,7 +2262,11 @@ static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE handle)
   }
 
   /* pass in the interface to be handled */
+#ifdef SAPwithUNICODE
+  sv_iface = *hv_fetch(p_iface_hash, SvPV(sv_temp, PL_na), SvCUR(sv_temp), FALSE);
+#else
   sv_iface = *hv_fetch(p_iface_hash, funcname, strlen(funcname), FALSE);
+#endif
 
   handle_request(handle, sv_iface);
 
@@ -2263,13 +2276,13 @@ static RFC_RC DLL_CALL_BACK_FUNCTION user_global_server(RFC_HANDLE handle)
 }
 
 #undef  NL
-#define NL "\n"
+#define NL cU("\n")
 
-static char *user_global_server_docu(void)
+static SAP_UC *user_global_server_docu(void)
 {
-  static char docu[] =
-  "The RFC library will call this function if any unknown"            NL
-  "RFC function should be executed in this RFC server program."       NL
+  static SAP_UC docu[] =
+  cU("The RFC library will call this function if any unknown")            NL
+  cU("RFC function should be executed in this RFC server program.")       NL
     ;
   return docu;
 }
@@ -2291,7 +2304,15 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
            ninit,
            nready,
            nbusy;
-   char   gwserv[8];
+#ifdef SAPwithUNICODE
+	 SV* sv_temp;
+   char * conn_ptr = NULL;
+   char * gwserv = NULL;
+   char * gwhost = NULL;
+   char * tpname = NULL;
+#else
+   char gwserv[8];
+#endif
 
    /*
     * install error handler
@@ -2313,14 +2334,30 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
    /* get the tRFC indicator  */
    sv_is_trfc = (SV*) *hv_fetch(p_saprfc, (char *) "TRFC", 4, FALSE); 
 
+#ifdef SAPwithUNICODE
+   conn_ptr =  u8to16(sv_conn);
+   handle = RfcAcceptExt( (SAP_UC *) conn_ptr );
+   free(conn_ptr);
+#else
    handle = RfcAcceptExt( SvPV(sv_conn, SvCUR(sv_conn)) );
+#endif
 
    /* fprintf(stderr, "what is my handle: %d\n", handle); */
-   sprintf(gwserv, "%d", SvIV((SV*) *hv_fetch(p_saprfc, (char *) "GWSERV", 6, FALSE))); 
+#ifdef SAPwithUNICODE
+   rc = RfcCheckRegisterServer( (SAP_UC *)(tpname = u8to16((SV*) *hv_fetch(p_saprfc, (char *) "TPNAME", 6, FALSE))),
+                                (SAP_UC *)(gwhost = u8to16((SV*) *hv_fetch(p_saprfc, (char *) "GWHOST", 6, FALSE))), 
+                                (SAP_UC *)(gwserv = u8to16((SV*) *hv_fetch(p_saprfc, (char *) "GWSERV", 6, FALSE))), 
+ 			        &ntotal, &ninit, &nready, &nbusy, &error_info);
+	 free(tpname);
+	 free(gwhost);
+	 free(gwserv);
+#else
+   sprintf(gwserv, "%d", (int)(SvIV((SV*) *hv_fetch(p_saprfc, (char *) "GWSERV", 6, FALSE)))); 
    rc = RfcCheckRegisterServer( SvPV((SV*) *hv_fetch(p_saprfc, (char *) "TPNAME", 6, FALSE), PL_na),
                                 SvPV((SV*) *hv_fetch(p_saprfc, (char *) "GWHOST", 6, FALSE), PL_na), 
  			        gwserv, 
  			        &ntotal, &ninit, &nready, &nbusy, &error_info);
+#endif
 
    if (rc != RFC_OK)
    {
@@ -2329,9 +2366,15 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
      fprintf(stderr, "Key         %s\n", error_info.key);
      fprintf(stderr, "Message     %s\n\n", error_info.message);
      */
+#ifdef SAPwithUNICODE
+     hv_store(p_saprfc, (char *) "ERROR", 5, 
+        newSVpvf("\nGroup       Error group %d\nKey         %s\nMessage     %s\n\n", 
+	           error_info.group, SvPV(u16to8((char *)error_info.key, strlenU(error_info.key)*2), PL_na), SvPV(u16to8((char *)error_info.message, strlenU(error_info.message)*2), PL_na)), 0);
+#else
      hv_store(p_saprfc, (char *) "ERROR", 5, 
         newSVpvf("\nGroup       Error group %d\nKey         %s\nMessage     %s\n\n", 
 	           error_info.group, error_info.key, error_info.message), 0);
+#endif
      return newSViv(-1);
    }
 
@@ -2367,7 +2410,7 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
 
    if( rc != RFC_OK )
    {
-     RfcAbort( handle, "Initialisation error" );
+     RfcAbort( handle, cU("Initialisation error"));
      hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("Initialisation error in the gateway"), 0);
      return newSViv(-1);
    }
@@ -2412,7 +2455,7 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
        {
            /* fprintf(stderr, "\nERROR: Install %s     rfc_rc = %d",
 	                   name_user_global_server, rc); */
-           RfcAbort( handle, "Cant install global tRFC handler" );
+           RfcAbort( handle, cU("Cant install global tRFC handler") );
            return newSViv(-1);
        }
     }
@@ -2455,16 +2498,25 @@ SV* my_accept( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
      }
 
      /* check at this point for registered functions */
+#ifdef SAPwithUNICODE
+	sv_temp = u16to8((char *) funcname, strlenU(funcname) * 2);
+  if ( ! hv_exists(p_iface_hash, SvPV(sv_temp, PL_na), SvCUR(sv_temp)) ){
+#else
      if ( ! hv_exists(p_iface_hash, funcname, strlen(funcname)) ){
+#endif
        /* fprintf(stderr, "the MISSING Function Name is: %s\n", funcname); */
-       RfcRaise( handle, "FUNCTION_MISSING" );
+       RfcRaise( handle, cU("FUNCTION_MISSING") );
        /* do event callback to intertwine other events */
        rc = loop_callback(sv_callback, sv_saprfc);
        continue;
      }
 
      /* pass in the interface to be handled */
+#ifdef SAPwithUNICODE
+     sv_iface = *hv_fetch(p_iface_hash, SvPV(sv_temp, PL_na), SvCUR(sv_temp), FALSE);
+#else
      sv_iface = *hv_fetch(p_iface_hash, funcname, strlen(funcname), FALSE);
+#endif
 
      handle_request(handle, sv_iface);
 
@@ -2500,16 +2552,19 @@ SV* my_register( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
    RFC_ERROR_INFO_EX  error_info;
    RFC_HANDLE handle;
    RFC_RC     rc;
-   RFC_FUNCTIONNAME funcname;
-   SV* sv_iface;
-   SV* sv_wait;
    SV* sv_is_trfc;
-   RFC_INT wtime = 0; 
    RFC_INT ntotal,
            ninit,
            nready,
            nbusy;
-   char   gwserv[8];
+#ifdef SAPwithUNICODE
+   char * conn_ptr = NULL;
+   char * gwserv = NULL;
+   char * gwhost = NULL;
+   char * tpname = NULL;
+#else
+   char gwserv[8];
+#endif
 
    /*
     * install error handler
@@ -2531,25 +2586,42 @@ SV* my_register( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
    /* get the tRFC indicator  */
    sv_is_trfc = (SV*) *hv_fetch(p_saprfc, (char *) "TRFC", 4, FALSE); 
 
+#ifdef SAPwithUNICODE
+   conn_ptr =  u8to16(sv_conn);
+   handle = RfcAcceptExt( (SAP_UC *) conn_ptr );
+   free(conn_ptr);
+#else
    handle = RfcAcceptExt( SvPV(sv_conn, SvCUR(sv_conn)) );
+#endif
 
    /* fprintf(stderr, "what is my handle: %d\n", handle); */
-   sprintf(gwserv, "%d", SvIV((SV*) *hv_fetch(p_saprfc, (char *) "GWSERV", 6, FALSE))); 
+#ifdef SAPwithUNICODE
+   rc = RfcCheckRegisterServer( (SAP_UC *)(tpname = u8to16((SV*) *hv_fetch(p_saprfc, (char *) "TPNAME", 6, FALSE))),
+                                (SAP_UC *)(gwhost = u8to16((SV*) *hv_fetch(p_saprfc, (char *) "GWHOST", 6, FALSE))), 
+                                (SAP_UC *)(gwserv = u8to16((SV*) *hv_fetch(p_saprfc, (char *) "GWSERV", 6, FALSE))), 
+ 			        &ntotal, &ninit, &nready, &nbusy, &error_info);
+	 free(tpname);
+	 free(gwhost);
+	 free(gwserv);
+#else
+   sprintf(gwserv, "%d", (int)(SvIV((SV*) *hv_fetch(p_saprfc, (char *) "GWSERV", 6, FALSE)))); 
    rc = RfcCheckRegisterServer( SvPV((SV*) *hv_fetch(p_saprfc, (char *) "TPNAME", 6, FALSE), PL_na),
                                 SvPV((SV*) *hv_fetch(p_saprfc, (char *) "GWHOST", 6, FALSE), PL_na), 
  			        gwserv, 
  			        &ntotal, &ninit, &nready, &nbusy, &error_info);
+#endif
 
    if (rc != RFC_OK)
    {
-     /*
-     fprintf(stderr, "\nGroup       Error group %d\n", error_info.group);
-     fprintf(stderr, "Key         %s\n", error_info.key);
-     fprintf(stderr, "Message     %s\n\n", error_info.message);
-     */
+#ifdef SAPwithUNICODE
+     hv_store(p_saprfc, (char *) "ERROR", 5, 
+        newSVpvf("\nGroup       Error group %d\nKey         %s\nMessage     %s\n\n", 
+	           error_info.group, SvPV(u16to8((char *)error_info.key, strlenU(error_info.key)*2), PL_na), SvPV(u16to8((char *)error_info.message, strlenU(error_info.message)*2), PL_na)), 0);
+#else
      hv_store(p_saprfc, (char *) "ERROR", 5, 
         newSVpvf("\nGroup       Error group %d\nKey         %s\nMessage     %s\n\n", 
 	           error_info.group, error_info.key, error_info.message), 0);
+#endif
      return newSViv(-1);
    }
 
@@ -2585,7 +2657,7 @@ SV* my_register( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
 
    if( rc != RFC_OK )
    {
-     RfcAbort( handle, "Initialisation error" );
+     RfcAbort( handle, cU("Initialisation error"));
      hv_store(p_saprfc, (char *) "ERROR", 5, newSVpvf("Initialisation error in the gateway"), 0);
      return newSViv(-1);
    }
@@ -2601,7 +2673,7 @@ SV* my_register( SV* sv_conn, SV* sv_docu, SV* sv_ifaces, SV* sv_saprfc )
        {
            /* fprintf(stderr, "\nERROR: Install %s     rfc_rc = %d",
 	                   name_user_global_server, rc); */
-           RfcAbort( handle, "Cant install global tRFC handler" );
+           RfcAbort( handle, cU("Cant install global tRFC handler"));
            return newSViv(-1);
        }
     }
@@ -2620,6 +2692,9 @@ SV* my_one_loop(SV* sv_handle, SV* sv_wait)
    SV* sv_iface;
    SV* sv_is_trfc;
    RFC_INT wtime = 0; 
+#ifdef SAPwithUNICODE
+	 SV* sv_temp;
+#endif
 
 
    p_iface_hash = (HV*)SvRV( global_sv_ifaces );
@@ -2672,9 +2747,14 @@ SV* my_one_loop(SV* sv_handle, SV* sv_wait)
    }
 
    /* check at this point for registered functions */
+#ifdef SAPwithUNICODE
+	sv_temp = u16to8((char *) funcname, strlenU(funcname) * 2);
+  if ( ! hv_exists(p_iface_hash, SvPV(sv_temp, PL_na), SvCUR(sv_temp)) ){
+#else
    if ( ! hv_exists(p_iface_hash, funcname, strlen(funcname)) ){
+#endif
      /* fprintf(stderr, "the MISSING Function Name is: %s\n", funcname); */
-     RfcRaise( handle, "FUNCTION_MISSING" );
+     RfcRaise( handle, cU("FUNCTION_MISSING") );
      /* do event callback to intertwine other events */
      rc = loop_callback(sv_callback, global_saprfc);
      return newSViv(rc);
@@ -2683,7 +2763,11 @@ SV* my_one_loop(SV* sv_handle, SV* sv_wait)
 	 /* fprintf(stderr, "looked up the iface...\n"); */
 
    /* pass in the interface to be handled */
+#ifdef SAPwithUNICODE
+   sv_iface = *hv_fetch(p_iface_hash, SvPV(sv_temp, PL_na), SvCUR(sv_temp), FALSE);
+#else
    sv_iface = *hv_fetch(p_iface_hash, funcname, strlen(funcname), FALSE);
+#endif
    /* fprintf(stderr, "Got the function: %s ...\n", funcname); */
 
 
@@ -2710,7 +2794,7 @@ static RFC_RC install_docu( RFC_HANDLE handle )
    /*
     * RFC_DOCU interface
     */
-   rc = RfcInstallFunction("RFC_DOCU",
+   rc = RfcInstallFunction(cU("RFC_DOCU"),
 			    do_docu,
 			    do_docu_docu() );
    if( rc != RFC_OK ) return rc;
@@ -2735,6 +2819,61 @@ void get_attributes(RFC_HANDLE rfc_handle, HV* hv_sysinfo)
   if (rc != RFC_OK)
     return;
 
+#ifdef SAPwithUNICODE
+  hv_store(hv_sysinfo, "dest", 4, u16to8((char *)rfc_attributes.dest, strlenU(rfc_attributes.dest)*2), 0);
+  hv_store(hv_sysinfo, "localhost", 9, u16to8((char *)rfc_attributes.own_host, strlenU(rfc_attributes.own_host)*2), 0);
+  if (rfc_attributes.rfc_role == RFC_ROLE_CLIENT)
+  {
+    if (rfc_attributes.partner_type == RFC_SERVER_EXT)
+      hv_store(hv_sysinfo, "servprogname", 12, u16to8((char *)rfc_attributes.partner_host, strlenU(rfc_attributes.partner_host)*2), 0);
+    else if (rfc_attributes.partner_type == RFC_SERVER_EXT_REG)
+      hv_store(hv_sysinfo, "servprogid", 10, u16to8((char *)rfc_attributes.partner_host, strlenU(rfc_attributes.partner_host)*2), 0);
+    else
+      hv_store(hv_sysinfo, "partnerhost", 11, u16to8((char *)rfc_attributes.partner_host, strlenU(rfc_attributes.partner_host)*2), 0);
+  }
+  else
+    hv_store(hv_sysinfo, "partnerhost", 11, u16to8((char *)rfc_attributes.partner_host, strlenU(rfc_attributes.partner_host)*2), 0);
+
+  hv_store(hv_sysinfo, "sysnr", 5, u16to8((char *)rfc_attributes.systnr, strlenU(rfc_attributes.systnr)*2), 0);
+  hv_store(hv_sysinfo, "sysid", 5, u16to8((char *)rfc_attributes.sysid, strlenU(rfc_attributes.sysid)*2), 0);
+  hv_store(hv_sysinfo, "mandt", 5, u16to8((char *)rfc_attributes.client, strlenU(rfc_attributes.client)*2), 0);
+  hv_store(hv_sysinfo, "user", 4, u16to8((char *)rfc_attributes.user, strlenU(rfc_attributes.user)*2), 0);
+  hv_store(hv_sysinfo, "lang", 4, u16to8((char *)rfc_attributes.language, strlenU(rfc_attributes.language)*2), 0);
+  hv_store(hv_sysinfo, "isolang", 7, u16to8((char *)rfc_attributes.ISO_language, strlenU(rfc_attributes.ISO_language)*2), 0);
+  if (rfc_attributes.trace == 'X')
+       hv_store(hv_sysinfo, "trace", 5, newSVpv("ON", 2), 0);
+  else
+       hv_store(hv_sysinfo, "trace", 5, newSVpv("OFF", 3), 0);
+
+  hv_store(hv_sysinfo, "localcodepage", 13, u16to8((char *)rfc_attributes.own_codepage, strlenU(rfc_attributes.own_codepage)*2), 0);
+  hv_store(hv_sysinfo, "partnercodepage", 15, u16to8((char *)rfc_attributes.partner_codepage, strlenU(rfc_attributes.partner_codepage)*2), 0);
+  if (rfc_attributes.rfc_role == RFC_ROLE_CLIENT)
+    hv_store(hv_sysinfo, "rfcrole", 7, newSVpv("External RFC Client", strlen("External RFC Client")), 0);
+  else if (rfc_attributes.own_type == RFC_SERVER_EXT)
+    hv_store(hv_sysinfo, "rfcrole", 7, newSVpv("External RFC Server, started by SAP gateway", strlen("External RFC Server, started by SAP gateway")), 0);
+  else
+    hv_store(hv_sysinfo, "rfcrole", 7, newSVpv("External RFC Server, registered at SAP gateway", strlen("External RFC Server, registered at SAP gateway")), 0);
+
+  hv_store(hv_sysinfo, "rel", 3, u16to8((char *)rfc_attributes.own_rel, strlenU(rfc_attributes.own_rel)*2), 0);
+
+  if (rfc_attributes.partner_type == RFC_SERVER_R3)
+    hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("R3", strlen("R3")), 0);
+  else if (rfc_attributes.partner_type == RFC_SERVER_R2)
+    hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("R2", strlen("R2")), 0);
+  else if (rfc_attributes.rfc_role == RFC_ROLE_CLIENT)
+  {
+    if (rfc_attributes.partner_type == RFC_SERVER_EXT)
+      hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("External RFC Server, started by SAP gateway", strlen("External RFC Server, started by SAP gateway")), 0);
+    else
+      hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("External RFC Server, registered at SAP gateway", strlen("External RFC Server, registered at SAP gateway")), 0);
+  }
+  else
+    hv_store(hv_sysinfo, "rfcpartner", 10, newSVpv("External RFC Client", strlen("External RFC Client")), 0);
+
+  hv_store(hv_sysinfo, "partnerrel", 10, u16to8((char *)rfc_attributes.partner_rel, strlenU(rfc_attributes.partner_rel)*2), 0);
+  hv_store(hv_sysinfo, "kernelrel", 9, u16to8((char *)rfc_attributes.kernel_rel, strlenU(rfc_attributes.kernel_rel)*2), 0);
+  hv_store(hv_sysinfo, "convid", 6, u16to8((char *)rfc_attributes.CPIC_convid, strlenU(rfc_attributes.CPIC_convid)*2), 0);
+#else
   hv_store(hv_sysinfo, "dest", 4, newSVpv(rfc_attributes.dest, strlen(rfc_attributes.dest)), 0);
   hv_store(hv_sysinfo, "localhost", 9, newSVpv(rfc_attributes.own_host, strlen(rfc_attributes.own_host)), 0);
   if (rfc_attributes.rfc_role == RFC_ROLE_CLIENT)
@@ -2788,6 +2927,7 @@ void get_attributes(RFC_HANDLE rfc_handle, HV* hv_sysinfo)
   hv_store(hv_sysinfo, "partnerrel", 10, newSVpv(rfc_attributes.partner_rel, strlen(rfc_attributes.partner_rel)), 0);
   hv_store(hv_sysinfo, "kernelrel", 9, newSVpv(rfc_attributes.kernel_rel, strlen(rfc_attributes.kernel_rel)), 0);
   hv_store(hv_sysinfo, "convid", 6, newSVpv(rfc_attributes.CPIC_convid, strlen(rfc_attributes.CPIC_convid)), 0);
+#endif
 
   return;
 }
@@ -2799,14 +2939,9 @@ void get_attributes(RFC_HANDLE rfc_handle, HV* hv_sysinfo)
  */
 static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_iface )
 {
-    char          command[256];
     RFC_PARAMETER parameter[MAX_PARA];
     RFC_TABLE     table[MAX_PARA];
     RFC_RC        rc;
-    RFC_CHAR      read_flag = 0;
-    int           mode;
-    char * p;
-    char ** exception;
     int           tab_cnt, 
                   imp_cnt,
                   exp_cnt,
@@ -2826,6 +2961,19 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
     SV*           sv_result;
     SV*           sv_callback_handler;
     SV*           sv_self;
+#ifdef SAPwithUNICODE
+   int                data_index,
+                      k,
+                      fsize,
+                      itype;
+   char *             ptr;
+   char *             rowptr;
+   AV*                av_data;
+   AV*                av_field;
+   AV*                av_fields;
+   SV*                sv_value;
+   SV*                sv_name;
+#endif
 
     HV*           hash = newHV();
 
@@ -2841,49 +2989,72 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
        /* grab each parameter hash */
        h_entry = hv_iternext( h_parms );
        h_key = hv_iterkeysv( h_entry );
-       fprintf(stderr, "processing parameter: %s\n", SvPV(h_key, PL_na)); 
+       /* fprintf(stderr, "processing parameter: %s\n", SvPV(h_key, PL_na));  */
        if (strncmp("__HANDLER__", SvPV(h_key, PL_na),11) == 0 ||
            strncmp("__SELF__", SvPV(h_key, PL_na),8) == 0){
       	  continue;
        }
 
-       fprintf(stderr, "ok want this parameter ...\n");
+       /* fprintf(stderr, "ok want this parameter ...\n"); */
        p_hash = (HV*)SvRV( hv_iterval(h_parms, h_entry) );
        sv_type = *hv_fetch( p_hash, (char *) "TYPE", 4, FALSE );
 
        /* determine the interface parameter type and build a definition */
        switch ( SvIV(sv_type) ){
-	   case RFCIMPORT:
+	     case RFCIMPORT:
 	     /* build an import parameter and allocate space for it to be returned into */
            /* fprintf(stderr, "adding import parameter name is: %s\n", SvPV(h_key, PL_na)); */
-	   parameter[imp_cnt].name = make_strdup( h_key );
-	   if ( parameter[imp_cnt].name == NULL )
+#ifdef SAPwithUNICODE
+	     parameter[imp_cnt].name = (SAP_UC *) u8to16( h_key );
+	     parameter[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
+	     parameter[imp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+	     parameter[imp_cnt].nlen = strlen( SvPV(h_key, PL_na));
+			 //fprintfU(stderr, cU("import name: %s# length:%d\n"), myimports[imp_cnt].name, myimports[imp_cnt].leng);
+			 //fprintf(stderr, "parameter type: %d\n", myimports[imp_cnt].type);
+			 if (parameter[imp_cnt].type == RFCTYPE_CHAR ||
+			     parameter[imp_cnt].type == RFCTYPE_BYTE ||
+			     parameter[imp_cnt].type == RFCTYPE_NUM ||
+			     parameter[imp_cnt].type == RFCTYPE_DATE ||
+			     parameter[imp_cnt].type == RFCTYPE_TIME){
+	       parameter[imp_cnt].addr = make_space2(parameter[imp_cnt].leng*2);
+	       parameter[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) ) * 2;
+			 } else {
+	       parameter[imp_cnt].addr = make_space2(parameter[imp_cnt].leng);
+			 }
+#else
+	     parameter[imp_cnt].name = make_strdup( h_key );
+	     if ( parameter[imp_cnt].name == NULL )
 	       return 0;
-	   parameter[imp_cnt].nlen = strlen( SvPV(h_key, PL_na));
-	   parameter[imp_cnt].addr = make_space( *hv_fetch(p_hash, (char *) "LEN", 3, FALSE) );
-	   parameter[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
-	   parameter[imp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
-	   ++imp_cnt;
-	   break;
+	     parameter[imp_cnt].nlen = strlen( SvPV(h_key, PL_na));
+	     parameter[imp_cnt].addr = make_space( *hv_fetch(p_hash, (char *) "LEN", 3, FALSE) );
+	     parameter[imp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
+	     parameter[imp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+#endif
+	     ++imp_cnt;
+	     break;
 
-	   case RFCTABLE:
+	     case RFCTABLE:
 	     /* construct a table parameter and copy the table rows on to the table handle */
            /* fprintf(stderr, "adding table parameter name is: %s\n", SvPV(h_key, PL_na)); */
-	   table[tab_cnt].name = make_strdup( h_key );
-	   if ( table[tab_cnt].name == NULL )
-	       return 0;
-	   table[tab_cnt].nlen = strlen( SvPV(h_key, PL_na));
-	   table[tab_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
-           table[tab_cnt].itmode = RFC_ITMODE_BYREFERENCE;
-           table[tab_cnt].type = RFCTYPE_CHAR; 
-	   /* maybe should be RFCTYPE_BYTE */
-	   tab_cnt++;
-	   break;
-	 default:
+#ifdef SAPwithUNICODE
+	     table[tab_cnt].name = (SAP_UC *) u8to16( h_key );
+#else
+	     table[tab_cnt].name = make_strdup( h_key );
+	     if ( table[tab_cnt].name == NULL )
+	         return 0;
+       //table[tab_cnt].type = RFCTYPE_CHAR; 
+	     /* maybe should be RFCTYPE_BYTE */
+#endif
+	     table[tab_cnt].nlen = strlen( SvPV(h_key, PL_na));
+	     table[tab_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
+       table[tab_cnt].itmode = RFC_ITMODE_BYREFERENCE;
+       table[tab_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+	     tab_cnt++;
+	     break;
+	     default:
 	   /* ignore export parameters */
-	   break;
+	     break;
        };
-
     };
 
     /* tack on a NULL value parameter to each type to signify that there are no more */
@@ -2907,20 +3078,56 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 
     for (imp_cnt = 0; imp_cnt < MAX_PARA; imp_cnt++){
        if ( parameter[imp_cnt].name == NULL ){
-	   break;
+	       break;
        };
+#ifdef SAPwithUNICODE
+			 sv_name = u16to8((char *) parameter[imp_cnt].name, parameter[imp_cnt].nlen * 2);
+			 //fprintf(stderr, "the import name(out): %s#%d\n", SvPV(sv_name, SvCUR(sv_name)), SvCUR(sv_name));
+			 //fprintf(stderr, "the import value length: %d \n", myimports[imp_cnt].leng);
+	     p_hash = (HV*)SvRV(*hv_fetch(h_parms, SvPV(sv_name, SvCUR(sv_name)), SvCUR(sv_name), FALSE));
+			 if (hv_exists(p_hash, (char *) "DATA", 4)&& SvTRUE((SV *) *hv_fetch(p_hash, (char *) "DATA", 4, FALSE))) {
+	       av_data = (AV*) SvRV(*hv_fetch(p_hash, (char *) "DATA", 4, FALSE));
+	       a_index = av_len(av_data);
+		     //fprintf(stderr, "Array has: %d\n", a_index);
+	       hv_store_ent(hash, sv_name, newRV_noinc((SV*) (av_fields = newAV())), 0);
+	       for (j = 0; j <= a_index; j++) {
+					 av_field = (AV*) SvRV(*av_fetch(av_data, j, FALSE));
+			     itype = SvIV(*av_fetch(av_field, 0, FALSE));
+			     //fprintf(stderr, "Field: %d type: %d offset: %d len: %d\n", j, itype, SvIV(*av_fetch(av_field, 1, FALSE)), SvIV(*av_fetch(av_field, 2, FALSE)));
+			     if (itype == RFCTYPE_CHAR ||
+			         itype == RFCTYPE_BYTE ||
+			         itype == RFCTYPE_NUM ||
+			         itype == RFCTYPE_DATE ||
+			         itype == RFCTYPE_TIME){
+	           av_push(av_fields, u16to8(parameter[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+				   } else {
+	           av_push(av_fields, newSVpv(parameter[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+					 };
+				 };
+			 } else {
+			   if (parameter[imp_cnt].type == RFCTYPE_CHAR ||
+			       parameter[imp_cnt].type == RFCTYPE_BYTE ||
+			       parameter[imp_cnt].type == RFCTYPE_NUM ||
+			       parameter[imp_cnt].type == RFCTYPE_DATE ||
+			       parameter[imp_cnt].type == RFCTYPE_TIME){
+	         //fprintfU(stderr, cU("value: %s#\n"), myimports[imp_cnt].addr);
+	         hv_store_ent(hash, sv_name, u16to8(parameter[imp_cnt].addr, parameter[imp_cnt].leng), 0);
+			   } else {
+	         hv_store_ent(hash, sv_name, newSVpv(parameter[imp_cnt].addr, parameter[imp_cnt].leng), 0);
+			   }
+			 }
+#else
        /* fprintf(stderr, "getting import parameter: %s \n", parameter[imp_cnt].name); */
-       if ( parameter[imp_cnt].name != NULL ){
-	 hv_store(  hash, parameter[imp_cnt].name, parameter[imp_cnt].nlen, newSVpv( parameter[imp_cnt].addr, parameter[imp_cnt].leng ), 0 );
-         Safefree(parameter[imp_cnt].name);
-       };
+	     hv_store(  hash, parameter[imp_cnt].name, parameter[imp_cnt].nlen, newSVpv( parameter[imp_cnt].addr, parameter[imp_cnt].leng ), 0 );
        /* fprintf(stderr, " parameter value: %s \n", parameter[imp_cnt].addr); */
+#endif
+       Safefree(parameter[imp_cnt].name);
        parameter[imp_cnt].name = NULL;
        parameter[imp_cnt].nlen = 0;
        parameter[imp_cnt].leng = 0;
        parameter[imp_cnt].type = 0;
        if ( parameter[imp_cnt].addr != NULL ){
-	   Safefree(parameter[imp_cnt].addr);
+	       Safefree(parameter[imp_cnt].addr);
        };
        parameter[imp_cnt].addr = NULL;
 
@@ -2929,29 +3136,58 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
     /* retrieve the values of the table parameters and free up the memory */
     for (tab_cnt = 0; tab_cnt < MAX_PARA; tab_cnt++){
        if ( table[tab_cnt].name == NULL ){
-	   break;
+	       break;
        };
-       /* fprintf(stderr, "getting table parameter: %s \n", table[tab_cnt].name); */
-       if ( table[tab_cnt].name != NULL ){
-#ifdef DOIBMWKRND
-	   hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( array = newAV() ), 0);
+#ifdef SAPwithUNICODE
+		 sv_name = u16to8((char *) table[tab_cnt].name, table[tab_cnt].nlen * 2);
+		 //fprintf(stderr, "the table name(out): %s#%d\n", SvPV(sv_name, SvCUR(sv_name)), SvCUR(sv_name));
+		 //fprintf(stderr, "the table value length: %d \n", mytables[tab_cnt].leng);
+	   hv_store_ent(hash, sv_name, newRV_noinc( (SV*) ( array = newAV() ) ), 0);
+	   p_hash = (HV*)SvRV(*hv_fetch(h_parms, SvPV(sv_name, SvCUR(sv_name)), SvCUR(sv_name), FALSE));
+	   av_data = (AV*) SvRV(*hv_fetch(p_hash, (char *) "DATA", 4, FALSE));
+	   a_index = av_len(av_data);
+		 //fprintf(stderr, "Array has: %d\n", a_index);
 #else
-	   hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( (SV*) ( array = newAV() ) ), 0);
+       /* fprintf(stderr, "getting table parameter: %s \n", table[tab_cnt].name); */
+#ifdef DOIBMWKRND
+      hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( array = newAV() ), 0);
+#else
+      hv_store(  hash, table[tab_cnt].name, table[tab_cnt].nlen, newRV_noinc( (SV*) ( array = newAV() ) ), 0);
+#endif
 #endif
 	   /*  grab each table row and push onto an array */
-	   if (table[tab_cnt].ithandle != NULL){
-	      /* fprintf(stderr, "going to check count\n");
-	      fprintf(stderr, "the table count is: %d \n", ItFill(table[tab_cnt].ithandle)); */
-	      for (irow = 1; irow <=  ItFill(table[tab_cnt].ithandle); irow++){
-	          av_push( array, newSVpv( ItGetLine( table[tab_cnt].ithandle, irow ), table[tab_cnt].leng ) );
-	      };
-	   };
+	       if (table[tab_cnt].ithandle != NULL){
+	         /* fprintf(stderr, "going to check count\n");
+	        fprintf(stderr, "the table count is: %d \n", ItFill(table[tab_cnt].ithandle)); */
+	         for (irow = 1; irow <=  ItFill(table[tab_cnt].ithandle); irow++){
+#ifdef SAPwithUNICODE
+	       //av_push( array, u16to8( ItGetLine( mytables[tab_cnt].ithandle, irow ), mytables[tab_cnt].leng ) );
+    	       ptr = ItGetLine(table[tab_cnt].ithandle, irow);
+	           av_push(array, newRV_noinc((SV*) (av_fields = newAV())));
+	           for (j = 0; j <= a_index; j++) {
+				    	 av_field = (AV*) SvRV(*av_fetch(av_data, j, FALSE));
+    					 itype = SvIV(*av_fetch(av_field, 0, FALSE));
+	    				 //fprintf(stderr, "Field: %d type: %d offset: %d len: %d\n", j, itype, SvIV(*av_fetch(av_field, 1, FALSE)), SvIV(*av_fetch(av_field, 2, FALSE)));
+    			     if (itype == RFCTYPE_CHAR ||
+	    		         itype == RFCTYPE_BYTE ||
+		    	         itype == RFCTYPE_NUM ||
+			             itype == RFCTYPE_DATE ||
+			             itype == RFCTYPE_TIME){
+    	           av_push(av_fields, u16to8(ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	    				 } else {
+	               av_push(av_fields, newSVpv(ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+				    	 };
+    	       };
+#else
+	            av_push( array, newSVpv( ItGetLine( table[tab_cnt].ithandle, irow ), table[tab_cnt].leng ) );
+#endif
+	         };
+	       };
 	   
-	   Safefree(table[tab_cnt].name);
-       };
+	     Safefree(table[tab_cnt].name);
        table[tab_cnt].name = NULL;
        if ( table[tab_cnt].ithandle != NULL ){
-	   ItFree( table[tab_cnt].ithandle );
+	       ItFree( table[tab_cnt].ithandle );
        };
        table[tab_cnt].ithandle = NULL;
        table[tab_cnt].nlen = 0;
@@ -2991,8 +3227,12 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
        if (strncmp("__EXCEPTION__", SvPV(h_key, PL_na),13) == 0){
           sv_type  = (SV*) hv_iterval(h_parms, h_entry);
 	  /* fprintf(stderr, "Got an exception: %s \n", SvPV(sv_type, PL_na)); */
+#ifdef SAPwithUNICODE
+          RfcRaise( handle, (SAP_UC *) u8to16(sv_type) );
+#else
           RfcRaise( handle, SvPV(sv_type, PL_na) );
-	  return 0;
+#endif
+	        return 0;
        }
 
        /* fprintf(stderr, "processing parameter: %s\n", SvPV(h_key, PL_na)); */
@@ -3009,14 +3249,65 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
        switch ( SvIV(sv_type) ){
 	   case RFCEXPORT:
 	     /* build an export parameter and pass the value onto the structure */
+	   parameter[exp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
+	   parameter[exp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+#ifdef SAPwithUNICODE
+	   parameter[exp_cnt].name = (SAP_UC *) u8to16( h_key );
+		//fprintfU(stderr, cU("export name: %s#\n"), myexports[exp_cnt].name);
+		//fprintf(stderr, "parameter length: %d\n", myexports[exp_cnt].leng);
+		//fprintf(stderr, "parameter type: %d\n", myexports[exp_cnt].type);
+		 if (hv_exists(p_hash, (char *) "DATA", 4)&& SvTRUE((SV *) *hv_fetch(p_hash, (char *) "DATA", 4, FALSE))) {
+	       av_data = (AV*) SvRV(*hv_fetch(p_hash, (char *) "DATA", 4, FALSE));
+	       av_fields = (AV*) SvRV(*hv_fetch(p_hash, (char *) "VALUE", 5, FALSE));
+	       a_index = av_len(av_data);
+		     //fprintf(stderr, "Array has: %d\n", a_index);
+	       parameter[exp_cnt].addr = make_space2(parameter[exp_cnt].leng);
+	       for (j = 0; j <= a_index; j++) {
+					 av_field = (AV*) SvRV(*av_fetch(av_data, j, FALSE));
+			     itype = SvIV(*av_fetch(av_field, 0, FALSE));
+			     //fprintf(stderr, "Field: %d type: %d offset: %d len: %d\n", j, itype, SvIV(*av_fetch(av_field, 1, FALSE)), SvIV(*av_fetch(av_field, 2, FALSE)));
+	         sv_value = (SV*)*av_fetch(av_fields, j, FALSE);
+			     if (itype == RFCTYPE_CHAR ||
+			         itype == RFCTYPE_BYTE ||
+			         itype == RFCTYPE_NUM ||
+			         itype == RFCTYPE_DATE ||
+			         itype == RFCTYPE_TIME){
+	           memcpy(parameter[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
+						 free(ptr);
+				   } else {
+	           memcpy(parameter[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
+					 };
+				 };
+			 } else {
+			   if (parameter[exp_cnt].type == RFCTYPE_CHAR ||
+			       parameter[exp_cnt].type == RFCTYPE_BYTE ||
+			       parameter[exp_cnt].type == RFCTYPE_NUM ||
+			       parameter[exp_cnt].type == RFCTYPE_DATE ||
+			       parameter[exp_cnt].type == RFCTYPE_TIME){
+	         //fprintf(stderr, "value: %s\n", *hv_fetch(p_hash, (char *) "VALUE", 5, FALSE));
+	         parameter[exp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) ) * 2;
+	         parameter[exp_cnt].addr = u8to16l( *hv_fetch(p_hash, (char *) "VALUE", 5, FALSE), &fsize);
+	         parameter[exp_cnt].leng = fsize;
+		 //fprintf(stderr, "parameter length NOW: %d\n", myexports[exp_cnt].leng);
+	         //fprintfU(stderr, cU("value: %s#\n"), myexports[exp_cnt].addr);
+                 //for (k=0;k<myexports[exp_cnt].leng;k++){
+	         //fprintf(stderr, "%x|", *((char *) myexports[exp_cnt].addr+k));
+                 //}
+	         //fprintf(stderr, "\n");
+            
+			   } else {
+	         parameter[exp_cnt].addr = make_copy( *hv_fetch(p_hash, (char *) "VALUE", 5, FALSE),
+				  	        *hv_fetch(p_hash, (char *) "LEN", 3, FALSE) );
+			   }
+			 }
+#else
 	   parameter[exp_cnt].name = make_strdup( h_key );
 	   if ( parameter[exp_cnt].name == NULL )
 	       return 0;
-	   parameter[exp_cnt].nlen = strlen( SvPV(h_key, PL_na));
 	   parameter[exp_cnt].addr = make_copy( *hv_fetch(p_hash, (char *) "VALUE", 5, FALSE),
 					        *hv_fetch(p_hash, (char *) "LEN", 3, FALSE) );
-	   parameter[exp_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
-	   parameter[exp_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+#endif
+	   parameter[exp_cnt].nlen = strlen( SvPV(h_key, PL_na));
 	   ++exp_cnt;
 
 	   break;
@@ -3024,15 +3315,24 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 	   case RFCTABLE:
 	     /* construct a table parameter and copy the table rows on to the table handle */
            /* fprintf(stderr, "adding table parameter name is: %s\n", SvPV(h_key, PL_na)); */
+#ifdef SAPwithUNICODE
+	     table[tab_cnt].name = (SAP_UC *) u8to16( h_key );
+	     av_data = (AV*) SvRV(*hv_fetch(p_hash, (char *) "DATA", 4, FALSE));
+	     av_fields = (AV*) SvRV(*hv_fetch(p_hash, (char *) "VALUE", 5, FALSE));
+	     data_index = av_len(av_data);
+		   //fprintf(stderr, "Array has: %d\n", data_index);
+#else
 	   table[tab_cnt].name = make_strdup( h_key );
 	   if ( table[tab_cnt].name == NULL )
 	       return 0;
+#endif
 	   table[tab_cnt].nlen = strlen( SvPV(h_key, PL_na));
 	   table[tab_cnt].leng = SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) );
-           table[tab_cnt].itmode = RFC_ITMODE_BYREFERENCE;
-           table[tab_cnt].type = RFCTYPE_CHAR; 
+     table[tab_cnt].itmode = RFC_ITMODE_BYREFERENCE;
+     //table[tab_cnt].type = RFCTYPE_CHAR; 
 	   /* maybe should be RFCTYPE_BYTE */
-           table[tab_cnt].ithandle = 
+     table[tab_cnt].type = SvIV( *hv_fetch( p_hash, (char *) "INTYPE", 6, FALSE ) );
+     table[tab_cnt].ithandle = 
 	       ItCreate( table[tab_cnt].name,
 			 SvIV( *hv_fetch( p_hash, (char *) "LEN", 3, FALSE ) ), 0 , 0 );
 	   if ( table[tab_cnt].ithandle == NULL )
@@ -3043,10 +3343,32 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 	   /* fprintf(stderr, "the array contains: %d \n", a_index); */
 	   /* fprintf(stderr, "the array id is: %d \n", tab_cnt); */
 	   for (j = 0; j <= a_index; j++) {
+#ifdef SAPwithUNICODE
+	       av_fields = (AV*) SvRV(*av_fetch( array, j, FALSE ));
+				 //fprintf(stderr, "av_fields: %d\n", av_len(av_fields));
+		     rowptr = ItAppLine(table[tab_cnt].ithandle);
+	       for (k = 0; k <= data_index; k++) {
+					 av_field = (AV*) SvRV(*av_fetch(av_data, k, FALSE));
+			     itype = SvIV(*av_fetch(av_field, 0, FALSE));
+			     /* fprintf(stderr, "Field: %d type: %d offset: %d len: %d\n", k, itype, SvIV(*av_fetch(av_field, 1, FALSE)), SvIV(*av_fetch(av_field, 2, FALSE))); */
+	         sv_value = (SV*)*av_fetch(av_fields, k, FALSE);
+			     if (itype == RFCTYPE_CHAR ||
+			         itype == RFCTYPE_BYTE ||
+			         itype == RFCTYPE_NUM ||
+			         itype == RFCTYPE_DATE ||
+			         itype == RFCTYPE_TIME){
+	           memcpy(rowptr+((int)SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
+						 free(ptr);
+				   } else {
+	           memcpy(rowptr+((int)SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
+					 };
+				 };
+#else
 	       Copy(  SvPV( *av_fetch( array, j, FALSE ), PL_na ),
 		      ItAppLine( table[tab_cnt].ithandle ),
 		      table[tab_cnt].leng,
 		      char );
+#endif
 	   };
 	   tab_cnt++;
 	   break;
@@ -3095,8 +3417,13 @@ SV* call_handler(SV* sv_callback_handler, SV* sv_iface, SV* sv_data)
     XPUSHs( sv_2mortal( sv_data ) );
 
     /* add on the TID if one exists */
+#ifdef SAPwithUNICODE
+    if (strlenU(current_tid) > 0)
+       XPUSHs(u16to8((char *)current_tid, strlenU(current_tid)*2));
+#else
     if (strlen(current_tid) > 0)
        XPUSHs(newSVpvf("%s", current_tid));
+#endif
 
     /* stash the stack point */
     PUTBACK;
@@ -3130,11 +3457,12 @@ static RFC_RC DLL_CALL_BACK_FUNCTION do_docu(  RFC_HANDLE handle )
     RFC_PARAMETER parameter[1];
     RFC_TABLE     table[2];
     RFC_RC        rc;
-    RFC_CHAR      read_flag = 0;
     AV*           array;
     int           a_index;
-    int           mode;
-    char *p;
+    SAP_UC *p;
+#ifdef SAPwithUNICODE
+		char * ptr;
+#endif
     int i;
 
     parameter[0].name = NULL;
@@ -3143,12 +3471,15 @@ static RFC_RC DLL_CALL_BACK_FUNCTION do_docu(  RFC_HANDLE handle )
     parameter[0].addr = NULL;
     parameter[0].type = 0;
 
-    table[0].name =  malloc( 5 );
-    memset(table[0].name, 0, 5);
-    Copy("DOCU", table[0].name, 4, char);
-    table[0].nlen = 4;
+    table[0].name =  cU("DOCU");
+#ifdef SAPwithUNICODE
+	  table[0].nlen = strlenU(table[0].name);
+	  table[0].leng = 160;
+#else
+	  table[0].nlen = strlen(table[0].name);
+	  table[0].leng = 80;
+#endif
     table[0].type = RFCTYPE_CHAR;
-    table[0].leng = 80;
     table[0].itmode = RFC_ITMODE_BYREFERENCE;
 
     table[1].name = NULL;
@@ -3160,33 +3491,20 @@ static RFC_RC DLL_CALL_BACK_FUNCTION do_docu(  RFC_HANDLE handle )
     rc = RfcGetData( handle, parameter, table );
     if( rc != RFC_OK ) return rc;
 
-    parameter[0].name = NULL;
-    parameter[0].nlen = 0;
-    parameter[0].leng = 0;
-    parameter[0].addr = NULL;
-    parameter[0].type = 0;
-
-    table[0].name =  malloc( 5 );
-    memset(table[0].name, 0, 5);
-    Copy("DOCU", table[0].name, 4, char);
-    table[0].nlen = 4;
-    table[0].type = RFCTYPE_CHAR;
-    table[0].leng = 80;
-    table[0].itmode = RFC_ITMODE_BYREFERENCE;
-
-    table[1].name = NULL;
-    table[1].ithandle = NULL;
-    table[1].nlen = 0;
-    table[1].leng = 0;
-    table[1].type = 0;
-    table[0].ithandle = ItCreate( table[0].name, 80, 0 , 0 );
-
     /* get the documentation out of the array */
     array = (AV*) SvRV( sv_store_docu );
     a_index = av_len( array );
     for (i = 0; i <= a_index; i++) {
-       Copy(  SvPV( *av_fetch( array, i, FALSE ), PL_na ),
-	      ItAppLine( table[0].ithandle ), table[0].leng, char );
+       /*Copy(  SvPV( *av_fetch( array, i, FALSE ), PL_na ),
+	      ItAppLine( table[0].ithandle ), table[0].leng, char ); */
+       p = (SAP_UC *) ItAppLine( table[0].ithandle );
+#ifdef SAPwithUNICODE
+			 sprintfU(p, cU("%s"), (char *)(ptr = u8to16(*av_fetch( array, i, FALSE ))));
+			 free(ptr);
+#else
+			 sprintf(p, "%s", SvPV( *av_fetch( array, i, FALSE ), PL_na ));
+#endif
+
     };
 
     rc = RfcSendData( handle, parameter, table );
@@ -3205,18 +3523,18 @@ static RFC_RC DLL_CALL_BACK_FUNCTION do_docu(  RFC_HANDLE handle )
  * insert newline characters to start a new line
  */
 #undef  NL
-#define NL "\n"
+#define NL cU("\n")
 
-static char * do_docu_docu( void )
+static SAP_UC * do_docu_docu( void )
 {
-   static char docu[] =
- "This is the override function for the standard self         "      NL
- "discovery documentation function.              "                   NL
- ""                                                                  NL
- "IMPORTING"                                                         NL
- "TABLES"                                                            NL
- "  DOCU           C(80)"                                            NL
- "    internal table contains the documentaiton data.          "     NL
+   static SAP_UC docu[] =
+ cU("This is the override function for the standard self         ")      NL
+ cU("discovery documentation function.              ")                   NL
+ cU("")                                                                  NL
+ cU("IMPORTING")                                                         NL
+ cU("TABLES")                                                            NL
+ cU("  DOCU           C(80)")                                            NL
+ cU("    internal table contains the documentaiton data.          ")     NL
    ;
 
    return docu;

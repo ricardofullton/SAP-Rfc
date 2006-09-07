@@ -3,6 +3,7 @@ package SAP::Iface;
 use strict;
 
 require 5.005;
+use  Encode;
 
 use vars qw($VERSION $AUTOLOAD);
 
@@ -38,7 +39,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.47';
+$VERSION = '1.48';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -297,13 +298,16 @@ sub iface {
     map { $iface->{$_->name()} = { 'TYPE' => $_->type(),
 	                           'INTYPE' => $_->intype(),
 				                     'DATA' => ($_->structure ? [$_->data() ] : undef),
-                                   'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : ($self->unicode && $_->structure ? $_->intvalueparts() : $_->intvalue())),
-                                   'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
+#                                   'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : ($self->unicode && $_->structure ? $_->intvalueparts() : $_->intvalue())),
+                                   'VALUE' => ((($_->intype() == RFCTYPE_BYTE) && $_->type() == RFCEXPORT ) ? pack("A".$_->leng(), $_->intvalue()) : $_->intvalue()),
+#                                   'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT ) ? length($_->intvalue()) : $_->leng()) }
+                                   'LEN' => ((($_->intype() == RFCTYPE_CHAR) && $_->type() != RFCIMPORT && ! $_->unicode ) ? length($_->intvalue()) : $_->leng()) }
       } ( $flag ? $self->parms : $self->parms_noempty() );
 
     map { $iface->{$_->name()} = { 'TYPE' => RFCTABLE,
 	                           'INTYPE' => $_->intype(),
-				   'VALUE' => [ ($self->unicode ? $_->brokenrows() : $_->rows()) ],
+#				   'VALUE' => [ ($self->unicode ? $_->introws() : $_->rows()) ],
+				   'VALUE' => [ $_->introws() ],
 				   'DATA' => [$_->data() ],
 				   'LEN' => $_->leng() };
       } ( $self->tabs() );
@@ -499,6 +503,7 @@ my $TAB_VALID = {
    VALUE => 1,
    NAME => 1,
    ENDIAN => 1,
+   UNICODE => 1,
    RFCINTTYP => 1,
    INTYPE => 1,
    LEN => 1,
@@ -545,6 +550,12 @@ sub new {
 }
 
 
+sub unicode {
+  my $self = shift;
+  return $self->{UNICODE};
+}
+
+
 # Set/get the table rows - pass a reference to a anon array
 sub rows {
   my $self = shift;
@@ -552,31 +563,93 @@ sub rows {
     $self->{'VALUE'} = shift;
     my @rows = ();
     my $str = $self->structure();
+		my $flds = $str->fieldinfo;
     foreach my $row ( @{$self->{'VALUE'}} ){
-      if (ref($row) eq 'HASH'){
+		if ($self->unicode){
+		  # we must be given a hash
+      die "in Unicode a parameter ($self->{NAME}) must be passed a HASH"
+			  unless ref($row) eq 'HASH';
+			my $line = [];
+      map { 
+			  my $fld = $_;
+				my $value = $row->{$fld->{fieldname}};
+        if ( $fld->{intype} == RFCTYPE_BCD){
+	        $value =~ s/^\s+([ -+]\d.*)$/$1/;
+	        $value ||= 0;
+	        $value = sprintf("%0".int(($fld->{len1}*2) + ($fld->{dec} > 0 ? 1:0)).".".$fld->{dec}."f", $value);
+	        $value =~ s/\.//g;
+	        my @flds = split(//, $value);
+	        shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
+	        $value = join('', @flds);
+          $value = pack("H*", $value);
+        } elsif ( $fld->{intype} == RFCTYPE_FLOAT){
+  	      $value = pack("d", $value);
+        } elsif ( $fld->{intype} == RFCTYPE_INT){
+  	      $value = pack(($self->{'ENDIAN'} eq "BIG" ? "l" : "V" ), int($value));
+        } elsif ( $fld->{intype} == RFCTYPE_INT2){
+  	      $value = pack("S", int($value));
+        } elsif ( $fld->{intype} == RFCTYPE_INT1){
+        # get the last byte of the integer
+  				$value = chr(int($value));
+        } else {
+				  # This is a char type - sort out unicode
+					$value ||= " ";
+					{
+            use utf8;
+            Encode::_utf8_on($value);
+            if (length($value) > $fld->{len1}){
+              $value = substr($value, 0, $fld->{len1});
+            } else {
+              $value = pack("A".$fld->{len1}, $value);
+            }
+            Encode::_utf8_off($value);
+					}
+        };
+				push(@{$line}, $value);
+			} ( @{$flds} );
+      push(@rows, $line);
+		 } elsif (ref($row) eq 'HASH'){
         map { $str->$_($row->{$_}) } keys %{$row};
 	      $row = $str->value;
 	      $str->value("");
-      }
-      push(@rows, $row);
+        push(@rows, $row);
+      } else {
+        push(@rows, $row);
+			}
     }
-    $self->{'VALUE'} = \@rows;
+		if ($self->unicode){
+      $self->{'INTVALUE'} = \@rows;
+		} else {
+      $self->{'VALUE'} = \@rows;
+		}
   }
-  return  map{ pack("A".$self->leng(),$_) } (@{$self->{VALUE}});
+	if ($self->unicode){
+	 if ( scalar @{$self->{VALUE}} && ref($self->{VALUE}[0]) eq 'HASH'){ 
+	   my @rows = ();
+	   map {
+		      my $h = $_; 
+					my $r = { map { $_ => $h->{$_} } keys %{$h} };
+					push(@rows, $r);
+					} @{$self->{VALUE}};
+		 return @rows;
+	 } else {
+	  return map { [ map { $_ } @{$_} ] } @{$self->{VALUE}};
+	 }
+	} else {
+    return  map{ pack("A".$self->leng(),$_) } (@{$self->{VALUE}});
+  }
 
 }
 
 
-sub brokenrows {
+sub introws {
   my $self = shift;
-  my @rows = ();
-  my $str = $self->structure();
-  map{ my $rec = pack("A".$self->leng(),$_);
-	     push(@rows, [ map { substr($rec, $str->{FIELDS}->{$_}->{OFFSET}, $str->{FIELDS}->{$_}->{LEN}) } ($str->fields) ] );
-	} (@{$self->{VALUE}});
-	#use Data::Dumper;
-	#print STDERR "BROKENROWS: ".Dumper(\@rows)."\n";
-	return @rows;
+	if ($self->unicode){
+	  return map { [ map { $_ } @{$_} ] } @{$self->{INTVALUE}};
+	} else {
+    return  map{ pack("A".$self->leng(),$_) } (@{$self->{VALUE}});
+  }
+
 }
 
 
@@ -588,8 +661,6 @@ sub data {
   foreach ( $str->fields() ){
     push ( @rows, [$str->{FIELDS}->{$_}->{INTYPE}, $str->{FIELDS}->{$_}->{OFFSET2}, $str->{FIELDS}->{$_}->{LEN2}]);
   }
-	#use Data::Dumper;
-	#print STDERR "THE DATA: ".Dumper(\@rows)."\n";
   return @rows;
 }
 
@@ -633,30 +704,95 @@ sub addRow {
   if (@_){
     my $row = shift;
     if (ref($row) eq 'HASH'){
-      map { $self->structure->$_($row->{$_}) } keys %{$row};
-      $row = $self->structure->value;
-      $self->structure->value("");
+		  if ($self->unicode){
+			  my $line = [];
+		    my $flds = $self->structure->fieldinfo;
+        map { 
+			    my $fld = $_;
+		  		my $value = $row->{$fld->{fieldname}};
+          if ( $fld->{intype} == RFCTYPE_BCD){
+	          $value =~ s/^\s+([ -+]\d.*)$/$1/;
+	          $value ||= 0;
+	          $value = sprintf("%0".int(($fld->{len1}*2) + ($fld->{dec} > 0 ? 1:0)).".".$fld->{dec}."f", $value);
+	          $value =~ s/\.//g;
+	          my @flds = split(//, $value);
+	          shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
+	          $value = join('', @flds);
+            $value = pack("H*", $value);
+          } elsif ( $fld->{intype} == RFCTYPE_FLOAT){
+  	        $value = pack("d", $value);
+          } elsif ( $fld->{intype} == RFCTYPE_INT){
+  	        $value = pack(($self->{'ENDIAN'} eq "BIG" ? "l" : "V" ), int($value));
+          } elsif ( $fld->{intype} == RFCTYPE_INT2){
+  	        $value = pack("S", int($value));
+          } elsif ( $fld->{intype} == RFCTYPE_INT1){
+          # get the last byte of the integer
+    				$value = chr(int($value));
+          } else {
+  				  # This is a char type - sort out unicode
+  					$value ||= " ";
+  					{
+              use utf8;
+              Encode::_utf8_on($value);
+              if (length($value) > $fld->{len1}){
+                $value = substr($value, 0, $fld->{len1});
+              } else {
+                $value = pack("A".$fld->{len1}, $value);
+              }
+              Encode::_utf8_off($value);
+  					}
+          };
+  				push(@{$line}, $value);
+  			} ( @{$flds} );
+        push(@{$self->{VALUE}}, $line);
+			} else {
+        map { $self->structure->$_($row->{$_}) } keys %{$row};
+        $row = $self->structure->value;
+        push(@{$self->{VALUE}}, $row);
+			}
     } elsif (ref($row) eq 'ARRAY'){
- 	    #use Data::Dumper;
- 	    #print STDERR "GOT an ARRAY Row: ".Dumper($row)."\n";
-	    my $off = 0;
 		  my $cnt = 0;
 	    map { $row->[$_->{pos} -1] = substr($row->[$_->{pos} -1], 0, $_->{len1})  } (@{$self->structure->fieldinfo});
+
+      my $line = {};
 	    foreach my $fld (@{$self->structure->fieldinfo}){
- 		    #print STDERR "field: ".Dumper($fld)."\n";
-        if ($fld->{off1} > $off){
- 			    #print STDERR "splice: $cnt, 0 $fld->{off1} $off\n";
-			    splice(@{$row}, $cnt, 0, (" " x ($fld->{off1} - $off)));
- 	        #print STDERR "ARRAY NOW Row: ".Dumper($row)."\n";
-			    $cnt++;
-			  }
-			  $cnt++;
-			  $off = $fld->{off1} + $fld->{len1};
+	  			my $value = $row->[$cnt];
+	        #  Transform various packed dta types
+          if ( $fld->{intype} eq RFCTYPE_INT ){
+        	# Long INT4
+            $value = unpack((($self->{'RFCINTTYP'} eq 'BIG')  ? "N" : "V"), $value);
+          } elsif ( $fld->{intype} eq RFCTYPE_INT2 ){
+        	# Short INT2
+            $value = unpack("S",$value);
+          } elsif ( $fld->{intype} eq RFCTYPE_INT1 ){
+        	# INT1
+            $value = ord( $value );
+          } elsif ( $fld->{intype} eq RFCTYPE_NUM ){
+        	# NUMC
+            $value = int($value);
+          } elsif ( $fld->{intype} eq RFCTYPE_FLOAT ){
+        	# Float
+            $value = unpack("d",$value);
+          } elsif ( $fld->{intype} eq RFCTYPE_BCD and $value ){
+        	#  All types of BCD
+	          my @flds = split(//, unpack("H".$fld->{len1}*2, $value));
+	          if ( $flds[$#flds] eq 'd' ){
+	            splice( @flds,0,0,'-');
+	          }
+	          pop( @flds );
+  	        splice(@flds,$#flds - ( $fld->{dec} - 1 ),0,'.') if $fld->{dec} > 0;
+  	        $value = join('', @flds);
+          } else {
+	  			  # This is a char type - sort out unicode
+	  				$value ||= " ";
+          };
+		  		$line->{$fld->{fieldname}} = $value;
+		    	$cnt++;
+		  }
+      push(@{$self->{VALUE}}, $line);
+		} else {
+      push(@{$self->{VALUE}}, $row);
 		}
-   	  #print STDERR "NEW ARRAY Row: ".Dumper($row)."\n";
-			$row = join('', @{$row});
-		}
-    push(@{$self->{VALUE}}, $row);
   }
 }
 
@@ -665,6 +801,7 @@ sub addRow {
 sub empty {
   my $self = shift;
   $self->rows( [ ] );
+	$self->{INTVALUE} = [ ];
   return 1;
 }
 
@@ -828,6 +965,7 @@ my $PARMS_VALID = {
    TYPE => 1,
    DEFAULT => 1,
    VALUE => 1,
+   UNICODE => 1,
    CHANGED => 1
 };
 
@@ -869,6 +1007,7 @@ sub new {
      @_
   };
 
+
   die "Parameter TYPE not supplied !" if ! exists $self->{TYPE};
 
   die "Parameter Type not valid $self->{TYPE} !" 
@@ -883,8 +1022,6 @@ sub new {
 
 # create the object and return it
   bless ($self, $class);
-#	use Data::Dumper;
-#	print STDERR "Parameter: $self->{NAME} ", Dumper($self)."\n";
   return $self;
 }
 
@@ -917,8 +1054,6 @@ sub decimals {
 sub intype {
   my $self = shift;
   $self->{INTYPE} = shift if @_;
-  #die "Parameter INTYPE not valid $self->{INTYPE} !"
-  #   if ! exists $PARMS_VALTYPE->{$self->{INTYPE}};
   return $self->{INTYPE};
 }
 
@@ -931,9 +1066,12 @@ sub data {
   foreach ( $str->fields() ){
     push ( @rows, [$str->{FIELDS}->{$_}->{INTYPE}, $str->{FIELDS}->{$_}->{OFFSET2}, $str->{FIELDS}->{$_}->{LEN2}]);
   }
-	#use Data::Dumper;
-	#print STDERR "THE DATA: ".Dumper(\@rows)."\n";
   return @rows;
+}
+
+sub unicode {
+  my $self = shift;
+  return $self->{UNICODE};
 }
 
 
@@ -946,6 +1084,56 @@ sub value {
   if (@_){
     $self->{'VALUE'} = shift;
     $self->changed(1);
+
+		# unicode and a structure
+		if ($self->unicode && $self->structure){
+		  # we must be given a hash
+      die "in Unicode a parameter ($self->{NAME}) must be passed a HASH"
+			  unless ref($self->{'VALUE'}) eq 'HASH';
+     
+		  # loop structure fields
+			# fill in missing ones blank
+			# create a hash of all for the INTVALUE
+			$self->{INTVALUE} = [];
+      map { 
+			  my $fld = $_;
+				my $value = $self->{VALUE}->{$fld->{fieldname}};
+        if ( $fld->{intype} == RFCTYPE_BCD){
+	        $value =~ s/^\s+([ -+]\d.*)$/$1/;
+	        $value ||= 0;
+	        $value = sprintf("%0".int(($fld->{len1}*2) + ($fld->{dec} > 0 ? 1:0)).".".$fld->{dec}."f", $value);
+	        $value =~ s/\.//g;
+	        my @flds = split(//, $value);
+	        shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
+	        $value = join('', @flds);
+          $value = pack("H*", $value);
+        } elsif ( $fld->{intype} == RFCTYPE_FLOAT){
+  	      $value = pack("d", $value);
+        } elsif ( $fld->{intype} == RFCTYPE_INT){
+  	      $value = pack(($self->{'ENDIAN'} eq "BIG" ? "l" : "V" ), int($value));
+        } elsif ( $fld->{intype} == RFCTYPE_INT2){
+  	      $value = pack("S", int($value));
+        } elsif ( $fld->{intype} == RFCTYPE_INT1){
+        # get the last byte of the integer
+  				$value = chr(int($value));
+        } else {
+				  # This is a char type - sort out unicode
+					$value ||= " ";
+					{
+            use utf8;
+            Encode::_utf8_on($value);
+            if (length($value) > $fld->{len1}){
+              $value = substr($value, 0, $fld->{len1});
+            } else {
+              $value = pack("A".$fld->{len1}, $value);
+            }
+            Encode::_utf8_off($value);
+					}
+        };
+				push(@{$self->{INTVALUE}}, $value);
+			} ( @{$self->structure->fieldinfo} );
+		}
+
     #  it was passed in a hash
     if (ref($self->{'VALUE'}) eq 'HASH'){
       my $str = $self->structure();
@@ -965,17 +1153,27 @@ sub value {
         # no hash and no structure
 	      if ($self->intype() == RFCTYPE_CHAR ||
 	         $self->intype() == RFCTYPE_BYTE) {
-          $self->{VALUE} = pack("A".$self->leng, $self->{VALUE});
-          #$self->leng(length($self->{'VALUE'})); 
-					#print STDERR "Field: $self->{NAME} length changed to: $self->{LEN} \n";
-		  	}
+          Encode::_utf8_off($self->{VALUE});
+          if ($self->unicode){
+            use utf8;
+            Encode::_utf8_on($self->{VALUE});
+            if (length($self->{VALUE}) > $self->leng){
+              $self->{VALUE} = substr($self->{VALUE}, 0, $self->leng);
+            } else {
+              $self->{VALUE} = pack("A".$self->leng, $self->{VALUE});
+            }
+            Encode::_utf8_off($self->{VALUE});
+          } else {
+            $self->{VALUE} = pack("A".$self->leng, $self->{VALUE});
+  	      }
+  	    }
       }
     }
     return $self->{'VALUE'};
   }
 
   # return a complex or simple parameter value
-  if ($self->structure()){
+  if ($self->structure() && ! $self->unicode ){
     $self->structure->value( $self->{'VALUE'} );
     return  { map {$_ => $self->structure->$_() } ( $self->structure->fields ) };
   } else {
@@ -989,50 +1187,72 @@ sub value {
 sub intvalue {
 
   my $self = shift;
-  # sort out structured parameters
-  my $str = $self->structure();
-  $self->{'VALUE'} = $str->value if $str;
+
+	# XXX
+  ## sort out structured parameters
+  #my $str = $self->structure();
+  #$self->{'VALUE'} = $str->value if $str;
+
 
   # this overrides
   $self->{'VALUE'} = shift if @_;
 
 	# sort out structured value returned from unicode call
-  if (ref($self->{'VALUE'}) eq 'ARRAY'){
-	  #use Data::Dumper;
-	  #print STDERR "GOT an ARRAY Row: ".Dumper($self->{VALUE})."\n";
-	  my $off = 0;
+  if (ref($self->{'VALUE'}) eq 'ARRAY' && $self->unicode){
 		my $cnt = 0;
-	  map { $self->{'VALUE'}->[$_->{pos} -1] = substr($self->{'VALUE'}->[$_->{pos} -1], 0, $_->{len1})  } (@{$self->structure->fieldinfo});
+
+		# just put it into a hash now
+		$self->{INVALUE} = [];
+	  map { push(@{$self->{'INTVALUE'}}, substr($self->{'VALUE'}->[$_->{pos} -1], 0, $_->{len1})) } (@{$self->structure->fieldinfo});
+
+    $self->{VALUE} = {};
 	  foreach my $fld (@{$self->structure->fieldinfo}){
-#		  print STDERR "field: ".Dumper($fld)."\n";
-      if ($fld->{off1} > $off){
-#			  print STDERR "splice: $cnt, 0 $fld->{off1} $off\n";
-			  splice(@{$self->{'VALUE'}}, $cnt, 0, (" " x ($fld->{off1} - $off)));
-#	      print STDERR "ARRAY NOW Row: ".Dumper($self->{VALUE})."\n";
+				my $value = $self->{INTVALUE}->[$cnt];
+	      #  Transform various packed dta types
+        if ( $fld->{intype} eq RFCTYPE_INT ){
+      	# Long INT4
+          $value = unpack((($self->{'RFCINTTYP'} eq 'BIG')  ? "N" : "V"), $value);
+        } elsif ( $fld->{intype} eq RFCTYPE_INT2 ){
+      	# Short INT2
+          $value = unpack("S",$value);
+        } elsif ( $fld->{intype} eq RFCTYPE_INT1 ){
+      	# INT1
+          $value = ord( $value );
+        } elsif ( $fld->{intype} eq RFCTYPE_NUM ){
+      	# NUMC
+          $value = int($value);
+        } elsif ( $fld->{intype} eq RFCTYPE_FLOAT ){
+      	# Float
+          $value = unpack("d",$value);
+        } elsif ( $fld->{intype} eq RFCTYPE_BCD and $value ){
+      	#  All types of BCD
+	        my @flds = split(//, unpack("H".$fld->{len1}*2, $value));
+	        if ( $flds[$#flds] eq 'd' ){
+	          splice( @flds,0,0,'-');
+	        }
+	        pop( @flds );
+	        splice(@flds,$#flds - ( $fld->{dec} - 1 ),0,'.') if $fld->{dec} > 0;
+	        $value = join('', @flds);
+        } else {
+				  # This is a char type - sort out unicode
+					$value ||= " ";
+        };
+				$self->{VALUE}->{$fld->{fieldname}} = $value;
 			  $cnt++;
-			}
-			$cnt++;
-			$off = $fld->{off1} + $fld->{len1};
 		}
-#	  print STDERR "NEW ARRAY Row: ".Dumper($self->{VALUE})."\n";
-		$self->{'VALUE'} = join('', @{$self->{'VALUE'}});
 	}
 
 
 # Sort out theinternal format
   if ( defined $self->{'VALUE'} && $self->{'VALUE'} ne ''){
       if ( $self->intype() == RFCTYPE_BCD){
-				#print STDERR "BCD ($self->{NAME}) BEFORE PACK: $self->{VALUE} \n";
 	      $self->{VALUE} =~ s/^\s+([ -+]\d.*)$/$1/;
-				#print STDERR "BCD ($self->{NAME}) BEFORE PACK AFTER REGEX: $self->{VALUE} \n";
 	      $self->{VALUE} ||= 0;
-				#print STDERR "BCD DECIMALS: $self->{DECIMALS}\n";
 	      my $value = sprintf("%0".int(($self->{LEN}*2) + ($self->{DECIMALS} > 0 ? 1:0)).".".$self->{DECIMALS}."f", $self->{VALUE});
 	      $value =~ s/\.//g;
 	      my @flds = split(//, $value);
 	      shift @flds eq '-' ? push( @flds, 'd'): push( @flds, 'c');
 	      $value = join('', @flds);
-				#print STDERR "BCD ($self->{NAME}) TO PACK: $value\n";
         return pack("H*", $value);
       } elsif ( $self->intype() == RFCTYPE_FLOAT){
 	      return pack("d", $self->{VALUE});
@@ -1045,7 +1265,11 @@ sub intvalue {
 	      #return (unpack("A A A A", int($self->{VALUE})))[-1];
 				return chr(int($self->{VALUE}));
       } else {
-	      return pack("A".$self->leng(),$self->{VALUE});
+        if ($self->unicode){
+          return $self->structure ? $self->{INTVALUE} : $self->{VALUE};
+        } else {
+	        return pack("A".$self->leng(),$self->{VALUE});
+        }
       };
   } else {
       if ( $self->intype() == RFCTYPE_CHAR ){
@@ -1055,20 +1279,6 @@ sub intvalue {
       };
   };
 
-}
-
-
-# get the parameter internal value
-sub intvalueparts {
-
-  my $self = shift;
-  # sort out structured parameters
-  my $str = $self->structure();
-  my $rec = pack("A".$self->leng(),$self->{VALUE});
-	my $row = [ map { substr($rec, $str->{FIELDS}->{$_}->{OFFSET}, $str->{FIELDS}->{$_}->{LEN}) } ($str->fields) ];
-	#use Data::Dumper;
-	#print STDERR "INTVALUEPARTS: ".Dumper($row)."\n";
-  return $row;
 }
 
 
@@ -1452,6 +1662,7 @@ sub fieldinfo {
   map { push(@data, {
 	                    'fieldname' => $_,
 	                    'exid' => $self->{FIELDS}->{$_}->{EXID},
+	                    'intype' => $self->{FIELDS}->{$_}->{INTYPE},
 	                    'pos'  => $self->{FIELDS}->{$_}->{POSITION},
 	                    'dec'  => $self->{FIELDS}->{$_}->{DECIMALS},
 	                    'off1' => $self->{FIELDS}->{$_}->{OFFSET},

@@ -18,7 +18,7 @@ use Data::Dumper;
 #use utf8;
 
 use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
-$VERSION = '1.47';
+$VERSION = '1.48';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -198,6 +198,9 @@ sub new {
 	@rest
 	};
 
+#	print STDERR "Is unicode: ", MyIsUnicode(), "\n";
+#	exit;
+
 # validate the login parameters
   # map { delete $self->{$_} unless exists $VALID->{$_} } keys %{$self};
 
@@ -238,6 +241,9 @@ sub new {
     mkdir $CACHE.'/ifaces' unless -d $CACHE.'/ifaces';
     mkdir $CACHE.'/idocs' unless -d $CACHE.'/idocs';
   }
+
+#	print STDERR "Is unicode: ", $self->{UNICODE}, "\n";
+#	exit;
 
 # create the object and return it
   bless ($self, $class);
@@ -661,6 +667,7 @@ sub discover {
 	      $interface->addParm( 
 			       RFCINTTYP => $info->{'RFCINTTYP'},
 			       TYPE => int(RFCEXPORT),
+			       UNICODE => $self->unicode, 
 			       INTYPE => $datatype, 
 			       NAME => $name, 
 			       STRUCTURE => $structure, 
@@ -673,6 +680,7 @@ sub discover {
 	      $interface->addParm( 
 			       RFCINTTYP => $info->{'RFCINTTYP'},
 			       TYPE => int(RFCIMPORT),
+			       UNICODE => $self->unicode, 
 			       INTYPE => $datatype, 
 			       NAME => $name, 
 			       STRUCTURE => $structure, 
@@ -683,6 +691,7 @@ sub discover {
 	  #  Table
 	      $interface->addTab(
 			     # INTYPE => $datatype, 
+			       UNICODE => $self->unicode, 
 			       RFCINTTYP => $info->{'RFCINTTYP'},
 			       #INTYPE => RFCTYPE_BYTE, 
 			       INTYPE => $structure->StrType(), 
@@ -697,6 +706,9 @@ sub discover {
   # stash a copy of sysinfo on the iface
   $interface->{'SYSINFO'} = $info;
   #$interface->{'RFCINTTYP'} = $info->{'RFCINTTYP'};
+	#
+#print STDERR "is unicode: ", $self->unicode, "\n";
+#exit;
 
   # save the interface to the cache
   if ($CACHE){

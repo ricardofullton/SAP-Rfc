@@ -278,3 +278,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.47 Thu Aug 17 09:41:33 BST 2006
  - include unicode support for registered RFC programs
+
+1.48 Thu Sep  7 17:17:21 BST 2006
+ - patching up unicode support in tables and structures

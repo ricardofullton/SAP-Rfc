@@ -39,7 +39,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.48';
+$VERSION = '1.49';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -591,6 +591,10 @@ sub rows {
         } elsif ( $fld->{intype} == RFCTYPE_INT1){
         # get the last byte of the integer
   				$value = chr(int($value));
+        } elsif ( $fld->{intype} == RFCTYPE_DATE){
+  				$value ||= '00000000';
+        } elsif ( $fld->{intype} == RFCTYPE_TIME){
+  				$value ||= '000000';
         } else {
 				  # This is a char type - sort out unicode
 					$value ||= " ";
@@ -728,6 +732,10 @@ sub addRow {
           } elsif ( $fld->{intype} == RFCTYPE_INT1){
           # get the last byte of the integer
     				$value = chr(int($value));
+          } elsif ( $fld->{intype} == RFCTYPE_DATE){
+  			  	$value ||= '00000000';
+          } elsif ( $fld->{intype} == RFCTYPE_TIME){
+  			  	$value ||= '000000';
           } else {
   				  # This is a char type - sort out unicode
   					$value ||= " ";
@@ -1116,6 +1124,10 @@ sub value {
         } elsif ( $fld->{intype} == RFCTYPE_INT1){
         # get the last byte of the integer
   				$value = chr(int($value));
+        } elsif ( $fld->{intype} == RFCTYPE_DATE){
+  				$value ||= '00000000';
+        } elsif ( $fld->{intype} == RFCTYPE_TIME){
+  				$value ||= '000000';
         } else {
 				  # This is a char type - sort out unicode
 					$value ||= " ";

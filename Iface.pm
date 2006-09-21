@@ -39,7 +39,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.49';
+$VERSION = '1.50';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -607,6 +607,7 @@ sub rows {
               $value = pack("A".$fld->{len1}, $value);
             }
             Encode::_utf8_off($value);
+            no utf8;
 					}
         };
 				push(@{$line}, $value);
@@ -748,6 +749,7 @@ sub addRow {
                 $value = pack("A".$fld->{len1}, $value);
               }
               Encode::_utf8_off($value);
+              no utf8;
   					}
           };
   				push(@{$line}, $value);
@@ -1140,6 +1142,7 @@ sub value {
               $value = pack("A".$fld->{len1}, $value);
             }
             Encode::_utf8_off($value);
+            no utf8;
 					}
         };
 				push(@{$self->{INTVALUE}}, $value);
@@ -1175,6 +1178,7 @@ sub value {
               $self->{VALUE} = pack("A".$self->leng, $self->{VALUE});
             }
             Encode::_utf8_off($self->{VALUE});
+            no utf8;
           } else {
             $self->{VALUE} = pack("A".$self->leng, $self->{VALUE});
   	      }

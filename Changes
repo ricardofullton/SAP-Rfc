@@ -281,3 +281,7 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.48 Thu Sep  7 17:17:21 BST 2006
  - patching up unicode support in tables and structures
+ 
+1.50 Thu Sep 21 14:44:46 BST 2006
+ - do no utf8 as well as use utf8 (proper scoping).
+

@@ -316,7 +316,7 @@ static void * make_copy( SV* value, SV* length ){
     //memset(ptr, 20, len + 1);
     //*(ptr+(len)) = '\0';
     //Copy(SvPV( value, len ), ptr, len, char);
-		memcpy(ptr, SvPV(value, len), len);
+		memcpy((char *)ptr, SvPV(value, len), len);
     return ptr;
 }
 
@@ -340,7 +340,7 @@ static void * make_strdup( SV* value ){
     //memset(ptr, 20, len + 1);
     //*(ptr+(len)) = '\0';
     //Copy(SvPV( value, len ), ptr, len, char);
-		memcpy(ptr, SvPV(value, len), len);
+		memcpy((char *)ptr, SvPV(value, len), len);
     return ptr;
 }
 
@@ -522,7 +522,7 @@ char *u_doconv8to16str(iconv_t iconv_handle, SV *string, int is_target_utf8, int
 	   fsize = l_obuf - outbytesleft;
 	   res = malloc(fsize+2);
 	   memset(res, 0, fsize+2);
-	   memcpy(res, obuf, fsize);
+	   memcpy((char *)res, obuf, fsize);
            //fprintf(stderr, "NO PADDING!!!\n"); 
 	 } else {
 	   fsize = orig*2;
@@ -531,7 +531,7 @@ char *u_doconv8to16str(iconv_t iconv_handle, SV *string, int is_target_utf8, int
 	   memsetU((SAP_UC *)res, cU(' '), orig);
 	   *(res+fsize) = '\0';
 	   *(res+(fsize+1)) = '\0';
-	   memcpy(res, obuf, l_obuf - outbytesleft);
+	   memcpy((char *)res, obuf, l_obuf - outbytesleft);
            //fprintf(stderr, "PAD THIS ONE!!! %d/%d \n", orig*2, l_obuf - outbytesleft); 
            //if ((l_obuf - outbytesleft) > (orig*2)){
            //  fprintf(stderr, "really bad problem!!!\n");
@@ -819,7 +819,7 @@ SV*  MyBcdToChar(SV* sv_bcd){
   memset(bcd_num+0, 0, sizeof(bcd_num));
   memset(bcd_char+0, 0, sizeof(bcd_char));
   //Copy(SvPV( sv_bcd, 2 ), (char *) bcd_num, 2, char);
-  memcpy(bcd_num+0, SvPV(sv_bcd, SvCUR(sv_bcd)), 3);
+  memcpy((char *)bcd_num+0, SvPV(sv_bcd, SvCUR(sv_bcd)), 3);
 
   //rc = RfcConvertBcdToChar((RFC_BCD *) SvPV(sv_bcd, SvCUR(sv_bcd)),
   rc = RfcConvertBcdToChar((RFC_BCD *) bcd_num,
@@ -1671,10 +1671,10 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
-	           memcpy(myexports[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
+	           memcpy((char *)myexports[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
 						 free(ptr);
 				   } else {
-	           memcpy(myexports[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
+	           memcpy((char *)myexports[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
 					 };
 				 };
 			 } else {
@@ -1747,10 +1747,10 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
-	           memcpy(rowptr+(SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
+	           memcpy((char *)rowptr+(SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
 						 free(ptr);
 				   } else {
-	           memcpy(rowptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
+	           memcpy((char *)rowptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
 					 };
 				 };
 #else
@@ -1888,9 +1888,9 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
-	           av_push(av_fields, u16to8(myimports[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	           av_push(av_fields, u16to8((char *)myimports[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 				   } else {
-	           av_push(av_fields, newSVpv(myimports[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	           av_push(av_fields, newSVpv((char *)myimports[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 					 };
 				 };
 			 } else {
@@ -1956,9 +1956,9 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
-	           av_push(av_fields, u16to8(ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	           av_push(av_fields, u16to8((char *)ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 					 } else {
-	           av_push(av_fields, newSVpv(ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	           av_push(av_fields, newSVpv((char *)ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 					 };
 	       };
 #else
@@ -3099,9 +3099,9 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
-	           av_push(av_fields, u16to8(parameter[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	           av_push(av_fields, u16to8((char *)parameter[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 				   } else {
-	           av_push(av_fields, newSVpv(parameter[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	           av_push(av_fields, newSVpv((char *)parameter[imp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 					 };
 				 };
 			 } else {
@@ -3173,9 +3173,9 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 		    	         itype == RFCTYPE_NUM ||
 			             itype == RFCTYPE_DATE ||
 			             itype == RFCTYPE_TIME){
-    	           av_push(av_fields, u16to8(ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+    	           av_push(av_fields, u16to8((char *)ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 	    				 } else {
-	               av_push(av_fields, newSVpv(ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
+	               av_push(av_fields, newSVpv((char *)ptr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvIV(*av_fetch(av_field, 2, FALSE))));
 				    	 };
     	       };
 #else
@@ -3272,10 +3272,10 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
-	           memcpy(parameter[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
+	           memcpy((char *)parameter[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
 						 free(ptr);
 				   } else {
-	           memcpy(parameter[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
+	           memcpy((char *)parameter[exp_cnt].addr+(SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
 					 };
 				 };
 			 } else {
@@ -3357,10 +3357,10 @@ static RFC_RC DLL_CALL_BACK_FUNCTION handle_request(  RFC_HANDLE handle, SV* sv_
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
-	           memcpy(rowptr+((int)SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
+	           memcpy((char *)rowptr+((int)SvIV(*av_fetch(av_field, 1, FALSE))), (ptr = u8to16p(sv_value)), SvCUR(sv_value)*2);
 						 free(ptr);
 				   } else {
-	           memcpy(rowptr+((int)SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
+	           memcpy((char *)rowptr+((int)SvIV(*av_fetch(av_field, 1, FALSE))), SvPV(sv_value, SvCUR(sv_value)), SvCUR(sv_value));
 					 };
 				 };
 #else

@@ -47,13 +47,24 @@ use File::Basename qw(dirname basename);
 use Getopt::Long;
 use vars qw($opt_source $opt_addlibs $opt_help);
 
-&GetOptions("source=s", \$opt_source, "addlibs=s", \$opt_addlibs, "unicode", \$opt_unicode, "help", \$opt_help);
+&GetOptions("source=s", \$opt_source, "addlibs=s", \$opt_addlibs, "iconv=s", \$opt_iconv, "unicode", \$opt_unicode, "help", \$opt_help);
 
 $ADD_FLAGS = "";
 if ($opt_unicode){
   print "O-ohhh -unicode!!\n";
 	$ADDITIONAL_LIBS .= '-lsapu16 -lstdc++';
 	$ADD_FLAGS = " -DSAP_RFC_TIME -DSAPwithUNICODE -DSAPonLIN -DSAPonUNIX ";
+}
+
+my ($iconv_inc, $iconv_lib);
+if ($opt_iconv){
+	$iconv_inc = $opt_iconv."/include";
+	$iconv_lib = $opt_iconv."/lib";
+	die "iconv include dir does not exist ($iconv_inc)\n" unless -d $iconv_inc;
+	die "iconv lib dir does not exist ($iconv_lib)\n" unless -d $iconv_lib;
+	$iconv_inc = "-I".$opt_iconv;
+	$iconv_lib = "-L".$opt_iconv." -liconv";
+  print "Iconv directory specified: adding $iconv_inc and $iconv_lib\n";
 }
 
 # spew forth the help
@@ -95,6 +106,11 @@ right direction:
   library specifically librfcum.xx or librfcu.a and the libsapu16 
   library.
   (good luck!!).
+
+(3) --iconv /some/path/to/iconv
+  This says where the path is to iconv (minus the ./include|./lib)
+  This path will be added to the build plus the explicit linking 
+  of -liconv.
 
 Example:
 
@@ -237,8 +253,8 @@ WriteMakefile(
 #     DEFINE => ' -D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE')." $ADD_FLAGS ",
      DEFINE => '-g -Wall -D'.(($^O =~ /aix/i)? 'DOIBMWKRND' : 'SUMITELSE')." $ADD_FLAGS ",
 
-    'LIBS'      => ["$ADDITIONAL_LIBS $RFC_LIB $LIBS"],
-    'INC'    => "-I".$RFC_INC,
+    'LIBS'      => ["$ADDITIONAL_LIBS $RFC_LIB $LIBS $iconv_lib"],
+    'INC'    => "-I".$RFC_INC ." ".$iconv_inc,
 
 );
 
@@ -250,7 +266,7 @@ sub MY::processPL { '' }
 sub MY::c_o {
   my $self = shift; 
   my $section = $self->MM::c_o;
-  if ($opt_unicode){
+  if ($opt_unicode && $^O !~ /MSWin32/i){
     $section =~ s/(\$\*\.i)/$1i\n\t\$\(FULLPERL\) u16lit\.pl \-le \$\(BASEEXT\)\.ii/s;
 		#.c$(OBJ_EXT):
 		#        $(CCCMD) $(CCCDLFLAGS) "-I$(PERL_INC)" $(PASTHRU_DEFINE) $(DEFINE) $*.c
@@ -271,7 +287,7 @@ sub MY::dynamic_lib {
 	  $section .= "\tmt.exe -outputresource:Rfc.dll;2 -manifest Rfc.dll.manifest\n";
 	  $section .= "\tcd ..\\..\\..\\..\\..\n";
 	}
-  if ($opt_unicode){
+  if ($opt_unicode && $^O !~ /MSWin32/i){
 	  $section =~ s/(\$\(INST_DYNAMIC\)\: )/$1\$\(BASEEXT\)\.i /s;
 	#  print STDERR "dynamic_lib: $section\n";
 	}

@@ -18,7 +18,7 @@ use Data::Dumper;
 #use utf8;
 
 use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
-$VERSION = '1.50';
+$VERSION = '1.51';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -236,10 +236,9 @@ sub new {
   }
 
   if ($CACHE){
-    mkdir $CACHE unless -d $CACHE;
-    mkdir $CACHE.'/structs' unless -d $CACHE.'/structs';
-    mkdir $CACHE.'/ifaces' unless -d $CACHE.'/ifaces';
-    mkdir $CACHE.'/idocs' unless -d $CACHE.'/idocs';
+	  for my $cache_dir ($CACHE,"$CACHE/structs","$CACHE/ifaces","$CACHE/idocs"){
+	    mkdir $cache_dir, 0777 unless -d $cache_dir;
+	  }
   }
 
 #	print STDERR "Is unicode: ", $self->{UNICODE}, "\n";

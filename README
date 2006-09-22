@@ -195,6 +195,11 @@ Mark Förster writes:
   export LD_PRELOAD=/usr/lib/libcl.2
 
 
+Glenn Jackman writes:
+FYI, the sysadmin sent me this info about compiling on Solaris:                                                      
+  I added -lrfc and /usr/lib/libCrun.so.1 to EXTRALIBS and LDLOADLIBS.                                               
+  I also used gcc as opposed to the workshop compiler.  I've had better                                              
+  luck with this compiler compiling Open Source software.                                                            
 
 
 

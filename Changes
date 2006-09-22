@@ -285,3 +285,5 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 1.50 Thu Sep 21 14:44:46 BST 2006
  - do no utf8 as well as use utf8 (proper scoping).
 
+1.51 Fri Sep 22 13:30:59 BST 2006
+ - add in mkdir changes for 5.005 support

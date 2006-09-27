@@ -175,6 +175,7 @@ on systems that have iconv and are Little Endian in its current form.
 
 To build it you need something like:                                                                        
 perl Makefile.PL --source=/usr/sap/rfcsdk-640-unicode --unicode                                             
+for win32: perl Makefile.PL EMBED_MANIFEST=yes BINARY_LOCATION=SAP-Rfc-1.51.tar.gz --iconv=C:/iconv --unicode
 
 Please email directly if you have problems, and are willing to help 
 with testing (especially for other platforms) => piers@cpan.org.

@@ -62,8 +62,8 @@ if ($opt_iconv){
 	$iconv_lib = $opt_iconv."/lib";
 	die "iconv include dir does not exist ($iconv_inc)\n" unless -d $iconv_inc;
 	die "iconv lib dir does not exist ($iconv_lib)\n" unless -d $iconv_lib;
-	$iconv_inc = "-I".$opt_iconv;
-	$iconv_lib = "-L".$opt_iconv." -liconv";
+	$iconv_inc = "-I".$iconv_inc;
+	$iconv_lib = "-L".$iconv_lib." -liconv";
   print "Iconv directory specified: adding $iconv_inc and $iconv_lib\n";
 }
 
@@ -131,7 +131,7 @@ unshift(@POSSIBLE_RFC_DIRS, $opt_source) if $opt_source;
 my $currdir = dirname($0) || '.';
 chdir($currdir) || die("can't change to $currdir: $!");
 if($^O eq 'MSWin32') {
-    unshift(@POSSIBLE_RFC_DIRS, 'C:/Program Files/SAP/FrontEnd/SAPgui/rfcsdk', 'c:/rfcsdk');
+    unshift(@POSSIBLE_RFC_DIRS, 'C:/Program Files/SAP/FrontEnd/SAPgui/rfcsdk', 'C:\Program Files\SAP\FrontEnd\SAPgui\rfcsdku\lib', 'c:/rfcsdk');
 }
 
 my @CANDIDATE;
@@ -199,10 +199,10 @@ if($^O =~ /Win32/) {
     if(-d "$RFC_DIR/lib") {
       $RFC_LIB = "-L\"$RFC_DIR/lib\"";
     } elsif(-d "$RFC_DIR/out32dll") {
-    $RFC_LIB = "-L\"$RFC_DIR\\out32dll\"";
+      $RFC_LIB = "-L\"$RFC_DIR\\out32dll\"";
     }else {
     # Allow developers to point at librfc source...
-    $RFC_LIB = "-L\"$RFC_DIR\"";
+      $RFC_LIB = "-L\"$RFC_DIR\"";
     }
 
     $SEP = "\\";
@@ -214,13 +214,16 @@ if($^O =~ /Win32/) {
   
     # ccc on alpha support
     if ($^O eq 'linux' && `uname -m` =~ /alpha/ &&
-    !(system("nm $RFC_DIR/lib/librfc.a|grep -q 'U _Ots'")>>8)) {
-    $LIBS .= ' -lots'; 
+        !(system("nm $RFC_DIR/lib/librfc.a|grep -q 'U _Ots'")>>8)) {
+      $LIBS .= ' -lots'; 
     }
 }
 
 my $candidate_info = join('; ', @$candidate);
 
+if($^O eq 'MSWin32' && $opt_unicode){
+  $LIBS .= ' -lsapucum ';
+}
   
 print <<INFO;
 
@@ -396,8 +399,14 @@ sub Candidate {
     if (opendir(LIBDIR, "$dir/$libd")) {
     while (defined($_ = readdir(LIBDIR))) {
 		    if ($opt_unicode){
-          push(@libs, 'rfcum') if /^librfcum/;
-          push(@libs, 'rfcu') if /^librfcu\./;
+          if($^O eq 'MSWin32') {
+            push(@libs, 'rfc32u') if /rfc32u/i;
+            push(@libs, 'rfcum') if /^librfcum/;
+            push(@libs, 'rfcu') if /^librfcu\./;
+					} else {
+            push(@libs, 'rfcum') if /^librfcum/;
+            push(@libs, 'rfcu') if /^librfcu\./;
+					}
 				} else {
           push(@libs, 'rfc32') if /rfc32/i;
           push(@libs, 'rfccm') if /^librfccm/;

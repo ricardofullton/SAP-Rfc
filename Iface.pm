@@ -39,7 +39,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.51';
+$VERSION = '1.52';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {
@@ -674,9 +674,13 @@ sub data {
 sub hashRows {
   my $self = shift;
   my @rows = ();
-  foreach ( map{ pack("A".$self->leng(),$_) } (@{$self->{VALUE}}) ){
-    $self->structure->value( $_ );
-    push ( @rows, { map { $_ => $self->structure->$_() } ( $self->structure->fields ) } );
+	if ($self->unicode){
+    foreach ( @{$self->{VALUE}} ){ push(@rows, $_); }
+	} else {
+    foreach ( map{ pack("A".$self->leng(),$_) } (@{$self->{VALUE}}) ){
+      $self->structure->value( $_ );
+      push ( @rows, { map { $_ => $self->structure->$_() } ( $self->structure->fields ) } );
+    }
   }
   return @rows;
 }

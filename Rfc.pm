@@ -18,7 +18,7 @@ use Data::Dumper;
 #use utf8;
 
 use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
-$VERSION = '1.51';
+$VERSION = '1.52';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs

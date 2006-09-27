@@ -287,3 +287,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.51 Fri Sep 22 13:30:59 BST 2006
  - add in mkdir changes for 5.005 support
+
+1.52 Wed Sep 27 09:13:36 BST 2006
+ - sort out unicode build for win32 - thanks Olivier

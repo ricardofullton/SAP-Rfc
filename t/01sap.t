@@ -28,7 +28,7 @@ sub getSource{
 # print STDERR Dumper($if);
 
  # Check for a particular line
-# print STDERR "SOURCE: ".join("\n",Dumper($if->tab('QTAB')->hashRows()));
+ #print STDERR "SOURCE: ".join("\n",Dumper($if->tab('QTAB')->rows()));
  return join('', map { $_->{LINE} } $if->tab('QTAB')->hashRows() ) =~ /LGRFCUXX/s;
 
 }
@@ -56,18 +56,23 @@ sub getTable {
  my $if = $rfc->discover("RFC_READ_TABLE");
  $if->QUERY_TABLE('T000');
  my $flds = $if->tab('FIELDS')->structure();
- $if->FIELDS(["MANDT", "MTEXT", "ORT01"]);
+ $if->FIELDS([{ 'FIELDNAME' => "MANDT"}, { 'FIELDNAME' => "MTEXT"}, { 'FIELDNAME' => "ORT01"}]);
  my $str = $rfc->structure('T000');
  $rfc->callrfc($if);
  foreach my $row ($if->DATA()){
-   $str->value($row);
+   #warn Dumper($row)."\n";
+	 if ($if->unicode){
+     $str->value($row->{'WA'});
+	 } else {
+     $str->value($row);
+	 }
    $cnt += 1 if $str->MANDT eq '066';
  }
  $if->reset;
 # $if->QUERY_TABLE('TNRO');
 # $if->DELIMITER('|');
 # my $flds = $if->tab('FIELDS')->structure();
-# $if->OPTIONS( ["OBJECT LIKE 'ARCHIVELNK%'"] );
+# $if->OPTIONS( [ {'TEXT' => "OBJECT LIKE 'ARCHIVELNK%'"}] );
 # #my $str = $rfc->structure('TNRO');
 # $rfc->callrfc($if);
 # foreach my $row ($if->DATA()){

@@ -1230,7 +1230,11 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
        RfcLastErrorEx( &error_info );
      if (( rc == RFC_EXCEPTION ) ||
          ( rc == RFC_SYS_EXCEPTION )) {
-	     sprintfU(errstr, cU("GROUP\t%d\tKEY\t%s\tMESSAGE\t%s"), error_info.group, error_info.key, error_info.message );
+#ifdef _WIN32
+       sprintfU(errstr, cU("KEY\t%s\tMESSAGE\t%s"), error_info.key, error_info.message );
+#else
+       sprintfU(errstr, cU("GROUP\t%d\tKEY\t%s\tMESSAGE\t%s"), error_info.group, error_info.key, error_info.message );
+#endif
      } else {
 	     sprintfU(errstr, cU("EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s"), cU("RfcCallReceive"), error_info.group, error_info.key, error_info.message);
      };

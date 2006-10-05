@@ -290,3 +290,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.52 Wed Sep 27 09:13:36 BST 2006
  - sort out unicode build for win32 - thanks Olivier
+
+1.53 Wed Oct  4 16:20:34 BST 2006
+ - patch for AIX from Michael Lemke

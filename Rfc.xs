@@ -304,6 +304,8 @@ static void * make_copy( SV* value, SV* length ){
 
     char * ptr;
     int len;
+		STRLEN slen;   
+		char *sptr;
 		
 		len = SvIV( length );
 	  //fprintf(stderr, "make_copy ...\n");
@@ -316,7 +318,9 @@ static void * make_copy( SV* value, SV* length ){
     //memset(ptr, 20, len + 1);
     //*(ptr+(len)) = '\0';
     //Copy(SvPV( value, len ), ptr, len, char);
-		memcpy((char *)ptr, SvPV(value, len), len);
+		sptr = SvPV(value, slen);
+		//memcpy((char *)ptr, SvPV(value, len), len);
+		memcpy((char *)ptr, sptr, len);
     return ptr;
 }
 
@@ -329,6 +333,8 @@ static void * make_strdup( SV* value ){
 	  //fprintf(stderr, "make_strdup...\n");
     //int len = strlen(SvPV(value, PL_na));
     int len;
+		STRLEN slen;   
+		char *sptr;
 		
 		len = SvCUR(value);
     
@@ -340,7 +346,9 @@ static void * make_strdup( SV* value ){
     //memset(ptr, 20, len + 1);
     //*(ptr+(len)) = '\0';
     //Copy(SvPV( value, len ), ptr, len, char);
-		memcpy((char *)ptr, SvPV(value, len), len);
+		sptr = SvPV(value, slen);
+		//memcpy((char *)ptr, SvPV(value, len), len);
+		memcpy((char *)ptr, sptr, len);
     return ptr;
 }
 
@@ -1282,7 +1290,6 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
 	 for (i=0; i <= a_index; i++) {
 	   hash = (HV*) SvRV(*av_fetch(data, i, FALSE));
      type2[i].name = make_strdup(*hv_fetch(hash, (char *) "fieldname", 9, FALSE));
-		 //fprintf(stderr, "fieldname: %s\n", type2[i].name);
      type2[i].length = SvIV(*hv_fetch(hash, (char *) "len1", 4, FALSE));
 		 rfc_type_c = *(SvPV(*hv_fetch(hash, (char *) "exid", 4, FALSE), PL_na));
 		 rc = RfcExidToRfcType(rfc_type_c, &rfc_type);
@@ -1293,6 +1300,8 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
      type2[i].type = rfc_type;
      type2[i].decimals = SvIV(*hv_fetch(hash, (char *) "dec", 3, FALSE));
      type2[i].offset = SvIV(*hv_fetch(hash, (char *) "off1", 4, FALSE));
+		 //fprintf(stderr, "fieldname: %s chartype: %s type: %d len: %d dec: %d off: %d\n", type2[i].name, SvPV(*hv_fetch(hash, (char *) "exid", 4, FALSE), PL_na), rfc_type, type2[i].length, type2[i].decimals, type2[i].offset);
+		 //fprintf(stderr, "char: %c\n", rfc_type_c);
    }
 
 	 //fprintf(stderr, "InstallStructure2 ...\n");

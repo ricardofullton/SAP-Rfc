@@ -18,7 +18,7 @@ use Data::Dumper;
 #use utf8;
 
 use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
-$VERSION = '1.52';
+$VERSION = '1.53';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -891,6 +891,9 @@ sub structure {
  			   OFFSET4  => $_->{'off4'}
 			   )
 			} else {
+			  # hack for bad structure issues with type L
+				# should be type C ?
+	      $_->{'exid'} = "C" if $_->{'exid'} eq "L";
         $struct->addField( 
 			   NAME     => $_->{'fieldname'},
  			   LEN      => $_->{'len'},

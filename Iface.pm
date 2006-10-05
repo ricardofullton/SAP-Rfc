@@ -39,7 +39,7 @@ my $IFACE_VALID = {
    LINTTYP => 1
 };
 
-$VERSION = '1.52';
+$VERSION = '1.53';
 
 # empty destroy method to stop capture by autoload
 sub DESTROY {

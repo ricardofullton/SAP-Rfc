@@ -293,3 +293,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 1.53 Wed Oct  4 16:20:34 BST 2006
  - patch for AIX from Michael Lemke
+
+Thu Dec  7 07:13:33 GMT 2006
+ - tidy up exit(-1) statements on unfound structures and interfaces

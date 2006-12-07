@@ -992,8 +992,9 @@ SV* MyGetStructure(SV* sv_handle, SV* sv_structure){
      } else {
 	     sprintfU(errstr, cU("EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s"),cU("RfcGetStructureInfoAsTable"), error_info.group, error_info.key, error_info.message);
      };
-		 fprintfU(stderr,cU("%s"), errstr);
-		 exit(-1);
+		 //fprintfU(stderr,cU("%s"), errstr);
+		 croak("%s", u16to8((char *) errstr, strlenU(errstr)*2));
+		 //exit(-1);
    };
 
 	 array = newAV();
@@ -1108,8 +1109,9 @@ SV* MyGetStructure(SV* sv_handle, SV* sv_structure){
      } else {
 	     sprintf(errstr, "EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s","RfcCallReceive", error_info.group, error_info.key, error_info.message);
      };
-		 fprintf(stderr,"%s", errstr);
-		 exit(-1);
+		 //fprintf(stderr,"%s", errstr);
+		 croak("%s", errstr);
+		 //exit(-1);
    };
 
    /* free up the used memory for export parameters */
@@ -1201,8 +1203,9 @@ SV* MyInstallStructure(SV* sv_handle, SV* sv_structure){
 		 rc = RfcExidToRfcType(*ptr, &rfc_type);
 		 free(ptr);
 		 if (rc != RFC_OK) {
-			 fprintfU(stderr, cU("RFC Type conversion failed!\n"));
-			 exit(-1);
+			 //fprintfU(stderr, cU("RFC Type conversion failed!\n"));
+			 croak("RFC Type conversion failed!\n");
+			 //exit(-1);
 		 }
      utype[i].type = rfc_type;
 		 utype[i].decimals = SvIV(*hv_fetch(hash, (char *) "dec", 3, FALSE));
@@ -1435,8 +1438,13 @@ SV* MySysinfo(SV* sv_handle){
      } else {
 	     sprintfU(errstr, cU("EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s"),cU("RfcCallReceive"), error_info.group, error_info.key, error_info.message);
      };
-		 fprintfU(stderr,cU("%s"), errstr);
-		 exit(-1);
+		 //fprintfU(stderr,cU("%s"), errstr);
+#ifdef SAPwithUNICODE
+		 croak("%s", u16to8((char *) errstr, strlenU(errstr)*2));
+#else
+		 croak("%s", errstr);
+#endif
+		 //exit(-1);
    };
 
 #ifdef SAPwithUNICODE
@@ -1504,8 +1512,14 @@ SV* MyGetInterface(SV* sv_handle, SV* sv_function){
      } else {
 	     sprintfU(errstr, cU("EXCEPT\t%s\tGROUP\t%d\tKEY\t%s\tMESSAGE\t%s"),cU("RfcGetFunctionInfoAsTable"), error_info.group, error_info.key, error_info.message);
      };
-		 fprintfU(stderr,cU("%s"), errstr);
-		 exit(-1);
+		 //fprintfU(stderr,cU("%s"), errstr);
+#ifdef SAPwithUNICODE
+		 croak("%s", u16to8((char *) errstr, strlenU(errstr)*2));
+#else
+		 croak("%s", errstr);
+#endif
+		 fprintf(stderr, "got here in C\n");
+		 //exit(-1);
    };
 
 	 array = newAV();

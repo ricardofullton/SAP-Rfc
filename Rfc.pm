@@ -18,7 +18,7 @@ use Data::Dumper;
 #use utf8;
 
 use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
-$VERSION = '1.53';
+$VERSION = '1.54';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -551,7 +551,12 @@ sub discover {
 #  	$self->{ERROR} = $ifc->{'__RETURN_CODE__'};
 #	return undef;
 #  }
-  my $ifc = MyGetInterface( $self->{'HANDLE'}, $iface);
+  my $ifc;
+  eval { $ifc = MyGetInterface( $self->{'HANDLE'}, $iface); };
+	if ($@) {
+	  $self->{ERROR} = $@;
+		return undef;
+	}
 #  print STDERR "Interface: ".Dumper($ifc)." \n";
 
   my $interface = new SAP::Iface(NAME => $iface, UNICODE => $self->unicode);
@@ -788,7 +793,9 @@ sub structure {
 	  $struct1->{'RFCINTTYP'} = $info->{'RFCINTTYP'};
 	  $struct1->{'LINTTYP'} = $self->{'LINTTYP'};
     #$struct1->{'SYSINFO'} = $info;
-    my $type = MyInstallStructure($self->{'HANDLE'}, {NAME => $struct1->name, DATA => $struct1->fieldinfo});
+    my $type;
+    eval { $type = MyInstallStructure($self->{'HANDLE'}, {NAME => $struct1->name, DATA => $struct1->fieldinfo}); };
+		die "$@\n" if $@;
 		#warn "reinstalled: $type\n";
     $struct1->StrType($type);
 	  return $struct1;
@@ -830,7 +837,9 @@ sub structure {
 #	  return undef;
 #  }
 
-  my $data = MyGetStructure($self->{'HANDLE'}, $struct);
+  my $data;
+  eval { $data = MyGetStructure($self->{'HANDLE'}, $struct); };
+	die "$@\n" if $@;
 	my $tablen = pop(@{$data});
 	if ($self->unicode){
 	  $tablen = $tablen->{'b2len'};
@@ -915,7 +924,9 @@ sub structure {
     close STR;
   }
 
-  my $type = MyInstallStructure($self->{'HANDLE'}, {NAME => $struct->name, DATA => $struct->fieldinfo});
+  my $type;
+  eval { $type = MyInstallStructure($self->{'HANDLE'}, {NAME => $struct->name, DATA => $struct->fieldinfo}); };
+	die "$@\n" if $@;
 #	print STDERR "Structure: ".$struct->name." type: $type \n";
   $struct->StrType($type);
 
@@ -999,7 +1010,9 @@ sub sapinfo {
 #  	  $self->{ERROR} = $sysinfo->{'__RETURN_CODE__'};
 #	    return {};
 #    }
-    my $rfcsi = MySysinfo($self->{'HANDLE'});
+    my $rfcsi;
+    eval { $rfcsi = MySysinfo($self->{'HANDLE'}); };
+		die "$@\n" if $@;
     my $pos = 0;
     my $info = {};
 		#map { print STDERR "key: $_ => ".length($sysinfo->{$_})."\n" } keys %$sysinfo;

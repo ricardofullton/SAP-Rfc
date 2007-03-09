@@ -296,3 +296,6 @@ Lots of useful bits from Martin Kaemmerling, including compile fixes for Aix, an
 
 Thu Dec  7 07:13:33 GMT 2006
  - tidy up exit(-1) statements on unfound structures and interfaces
+
+Fri Mar  9 07:45:11 GMT 2007
+ - fix bug with unicode handling of RAW data types

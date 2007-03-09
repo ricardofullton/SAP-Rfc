@@ -141,6 +141,15 @@ typedef struct {
 		  RFC_INT  Decimals;
 		  SAP_CHAR Exid[1]; } RFCFLDS;
 
+typedef struct {
+		  SAP_CHAR Tabname[10];
+		  SAP_CHAR Fieldname[10];
+		  RFC_INT  Position;
+		  RFC_INT  Offset;
+		  RFC_INT  Intlength;
+		  RFC_INT  Decimals;
+		  SAP_CHAR Exid[1]; } RFCFLDS3x;
+
 static RFC_TYPE_ELEMENT2 fieldsOfRFCSI[] =
 {
 				{ "RFCPROTO",         RFCTYPE_CHAR,     3,   0,   0 },
@@ -947,7 +956,7 @@ SV*  MyAllowStartProgram(SV* sv_program_name){
 
 /* build the RFC call interface, do the RFC call, and then build a complex
   hash structure of the results to pass back into ruby */
-SV* MyGetStructure(SV* sv_handle, SV* sv_structure){
+SV* MyGetStructure(SV* sv_handle, SV* sv_structure, SV* sv_vers){
 
 #ifdef SAPwithUNICODE
    RFC_RC             rc;
@@ -1044,6 +1053,7 @@ SV* MyGetStructure(SV* sv_handle, SV* sv_structure){
                       irow,
 											tablength;
    RFCFLDS * tFields;
+   RFCFLDS3x * tFields3x;
 
    AV*                array;
    HV*                hash;
@@ -1135,15 +1145,26 @@ SV* MyGetStructure(SV* sv_handle, SV* sv_structure){
 	 array = newAV();
    /*  grab each table row and push onto an array */
    for (irow = 1; irow <=  ItFill(mytables[tab_cnt].ithandle); irow++){
-       tFields = ItGetLine(mytables[tab_cnt].ithandle, irow);
        hash = newHV();
-	     hv_store(hash, "tabname", 7, newSVpv(tFields->Tabname, 30), 0);
-	     hv_store(hash, "fieldname", 9, newSVpv(tFields->Fieldname, 30), 0);
-	     hv_store(hash, "exid", 4, newSVpv(tFields->Exid, 1), 0);
-	     hv_store(hash, "pos", 3, newSViv(tFields->Position), 0);
-	     hv_store(hash, "dec", 3, newSViv(tFields->Decimals), 0);
-	     hv_store(hash, "off", 3, newSViv(tFields->Offset), 0);
-	     hv_store(hash, "len", 3, newSViv(tFields->Intlength), 0);
+       if(SvTRUE(sv_vers)){
+         tFields3x = ItGetLine(mytables[tab_cnt].ithandle, irow);
+	       hv_store(hash, "tabname", 7, newSVpv(tFields3x->Tabname, 10), 0);
+	       hv_store(hash, "fieldname", 9, newSVpv(tFields3x->Fieldname, 10), 0);
+	       hv_store(hash, "exid", 4, newSVpv(tFields3x->Exid, 1), 0);
+	       hv_store(hash, "pos", 3, newSViv(tFields3x->Position), 0);
+	       hv_store(hash, "dec", 3, newSViv(tFields3x->Decimals), 0);
+	       hv_store(hash, "off", 3, newSViv(tFields3x->Offset), 0);
+	       hv_store(hash, "len", 3, newSViv(tFields3x->Intlength), 0);
+			 } else {
+         tFields = ItGetLine(mytables[tab_cnt].ithandle, irow);
+	       hv_store(hash, "tabname", 7, newSVpv(tFields->Tabname, 30), 0);
+	       hv_store(hash, "fieldname", 9, newSVpv(tFields->Fieldname, 30), 0);
+	       hv_store(hash, "exid", 4, newSVpv(tFields->Exid, 1), 0);
+	       hv_store(hash, "pos", 3, newSViv(tFields->Position), 0);
+	       hv_store(hash, "dec", 3, newSViv(tFields->Decimals), 0);
+	       hv_store(hash, "off", 3, newSViv(tFields->Offset), 0);
+	       hv_store(hash, "len", 3, newSViv(tFields->Intlength), 0);
+			 }
 	     av_push(array, newRV_noinc( (SV*) hash));
    };
 	   
@@ -1911,7 +1932,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 			     itype = SvIV(*av_fetch(av_field, 0, FALSE));
 			     //fprintf(stderr, "Field: %d type: %d offset: %d len: %d\n", j, itype, SvIV(*av_fetch(av_field, 1, FALSE)), SvIV(*av_fetch(av_field, 2, FALSE)));
 			     if (itype == RFCTYPE_CHAR ||
-			         itype == RFCTYPE_BYTE ||
+			         //itype == RFCTYPE_BYTE ||
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
@@ -1922,7 +1943,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 				 };
 			 } else {
 			   if (myimports[imp_cnt].type == RFCTYPE_CHAR ||
-			       myimports[imp_cnt].type == RFCTYPE_BYTE ||
+			       //myimports[imp_cnt].type == RFCTYPE_BYTE ||
 			       myimports[imp_cnt].type == RFCTYPE_NUM ||
 			       myimports[imp_cnt].type == RFCTYPE_DATE ||
 			       myimports[imp_cnt].type == RFCTYPE_TIME){
@@ -1979,7 +2000,7 @@ SV* MyRfcCallReceive(SV* sv_handle, SV* sv_function, SV* iface){
 					 itype = SvIV(*av_fetch(av_field, 0, FALSE));
 					 //fprintf(stderr, "Field: %d type: %d offset: %d len: %d\n", j, itype, SvIV(*av_fetch(av_field, 1, FALSE)), SvIV(*av_fetch(av_field, 2, FALSE)));
 			     if (itype == RFCTYPE_CHAR ||
-			         itype == RFCTYPE_BYTE ||
+			         //itype == RFCTYPE_BYTE ||
 			         itype == RFCTYPE_NUM ||
 			         itype == RFCTYPE_DATE ||
 			         itype == RFCTYPE_TIME){
@@ -3608,9 +3629,10 @@ MyGetTicket (sv_handle)
 	SV *	sv_handle
 
 SV *
-MyGetStructure (sv_handle, sv_structure)
+MyGetStructure (sv_handle, sv_structure, sv_vers)
 	SV *	sv_handle
 	SV *	sv_structure
+	SV *	sv_vers
 
 SV *
 MyInstallStructure (sv_handle, sv_structure)

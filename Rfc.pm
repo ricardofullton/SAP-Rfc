@@ -18,7 +18,7 @@ use Data::Dumper;
 #use utf8;
 
 use vars qw(@ISA $VERSION @EXPORT_OK $USECACHE $DEFAULT_CACHE $CACHE);
-$VERSION = '1.54';
+$VERSION = '1.55';
 @ISA = qw(DynaLoader Exporter);
 
 # Only return the exception key for registered RFCs
@@ -838,7 +838,7 @@ sub structure {
 #  }
 
   my $data;
-  eval { $data = MyGetStructure($self->{'HANDLE'}, $struct); };
+  eval { $data = MyGetStructure($self->{'HANDLE'}, $struct, ($info->{RFCSAPRL} =~ /^[4-9]\d\w\s$/ ? undef : 1)); };
 	die "$@\n" if $@;
 	my $tablen = pop(@{$data});
 	if ($self->unicode){
